@@ -13,6 +13,7 @@ alias editzsh='sudo vim ~/dotfiles/zshrc'
 alias editzsha='nvim ~/dotfiles/oh-my-zsh/aliases.zsh'
 alias edithypr='nvim ~/dotfiles/hypr/hyprland.conf'
 alias editsys='sudo vim ~/dotfiles/nixos/'
+alias editdotfiles='nvim ~/dotfiles'
 
 # copy pwd
 alias cpwd='pwd|tr -d "\n"|pbcopy'

@@ -4,6 +4,7 @@ cd "$(dirname "$0")"
 
 echo "Starting fresh install setup..."
 
+./scripts/makedirs.sh
 ./scripts/link.sh
 ./scripts/system.sh
 
