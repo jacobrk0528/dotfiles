@@ -8,6 +8,6 @@ echo "Starting fresh install setup..."
 ./scripts/system.sh
 
 # reload terminal
-sudo nixos-rebuild switch --flake
+sudo nixos-rebuild switch --flake /etc/nixos
 
 echo "Setup finished."
