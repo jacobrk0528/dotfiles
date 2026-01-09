@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+DIR="/home/jacob/Documents/TrinityRoad/local-git/trUtils"
+NAME="trUtils"
+
+tmux new-session -d -s $NAME
+
+tmux new-window -t $NAME:1
+tmux send-keys -t $NAME:1 "cd $DIR" C-m
+tmux send-keys -t $NAME:1 "nvim ." C-m
+
+tmux new-window -t $NAME:2
+tmux send-keys -t $NAME:2 "cd $DIR && source venv/bin/activate && clear" C-m
+
+tmux new-window -t $NAME:3
+tmux send-keys -t $NAME:3 "cd $DIR && clear && ssh alderaan" C-m
+tmux send-keys -t $NAME:3 "cd /www/services/trUtils && clear" C-m
+
+tmux new-window -t $NAME:9
+tmux send-keys -t $NAME:9 "cd $DIR && clear && composer run dev" C-m
+
+tmux select-window -t $NAME:1
+tmux attach -t $NAME
