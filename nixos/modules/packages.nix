@@ -33,6 +33,7 @@ php84Packages.composer
 
     # --- Desktop Tools ---
     waybar
+hyprpaper
     wofi
     pavucontrol
     blueman
