@@ -46,8 +46,6 @@ hardware.enableAllFirmware = true;
     # User specific packages (kept separate from system packages)
     packages = with pkgs; [
       tree
-
-inputs.opencode-flake.packages.${pkgs.system}.default
     ];
   };
 
@@ -56,6 +54,11 @@ inputs.opencode-flake.packages.${pkgs.system}.default
 services.mysql = {
 enable = true;
 package = pkgs.mariadb;
+};
+
+services.redis.servers."" = {
+enable= true;
+port = 6379;
 };
 
   # --- System State ---

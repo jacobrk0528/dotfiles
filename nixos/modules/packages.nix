@@ -1,9 +1,14 @@
 { config, pkgs, ... }:
 
+let
+  # Define your custom PHP with Redis enabled here, once.
+  # We use 'pkgs.php' because we are outside the 'with pkgs' block below.
+  myPhp = pkgs.php.withExtensions ({ enabled, all }: enabled ++ [ all.redis ]);
+in
 {
   # Allow unfree packages (Chrome, Nvidia, Slack, etc)
   nixpkgs.config.allowUnfree = true;
-nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   environment.systemPackages = with pkgs; [
     # --- Core ---
@@ -14,11 +19,12 @@ nix.settings.experimental-features = [ "nix-command" "flakes" ];
     unzip
     unixODBC
     psmisc
-slurp
-grim
-pavucontrol
-wl-clipboard
-ripgrep
+    slurp
+    grim
+    pavucontrol
+    wl-clipboard
+    ripgrep
+	fzf
 
     # --- Languages ---
     nodejs_22
@@ -27,15 +33,18 @@ ripgrep
     python3
     go
     tree-sitter
-	stdenv.cc.cc.lib
-	zlib
-php84Packages.composer
+    stdenv.cc.cc.lib
+    zlib
+    redis
+
+    # --- Custom PHP & Composer ---
+    myPhp
+    myPhp.packages.composer
 
     # --- Desktop Tools ---
     waybar
-hyprpaper
+    hyprpaper
     wofi
-    pavucontrol
     blueman
     ghostty
     tmux
@@ -46,13 +55,12 @@ hyprpaper
     postman
     remmina
     xrdp
-
     bibata-cursors
   ];
 
   environment.variables = {
-  XCURSOR_THEME = "Bibata-Modern-Ice";
-  XCURSOR_SIZE = "24";
+    XCURSOR_THEME = "Bibata-Modern-Ice";
+    XCURSOR_SIZE = "24";
   };
 
   fonts.packages = with pkgs; [
