@@ -5,14 +5,14 @@ return {
 			require("which-key").setup()
 		end,
 	},
-	{
-		"folke/noice.nvim",
-		event = "VeryLazy",
-		dependencies = {
-			"MunifTanjim/nui.nvim",
-			"rcarriga/nvim-notify",
-		},
-	},
+	-- {
+	-- 	"folke/noice.nvim",
+	-- 	event = "VeryLazy",
+	-- 	dependencies = {
+	-- 		-- "MunifTanjim/nui.nvim",
+	-- 		-- "rcarriga/nvim-notify",
+	-- 	},
+	-- },
 	{
 		"supermaven-inc/supermaven-nvim",
 		config = function()

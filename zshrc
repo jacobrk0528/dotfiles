@@ -27,3 +27,6 @@ if [ -f '/Users/jkrebs/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/jk
 
 source ~/.config/oh-my-zsh/aliases.zsh
 source /opt/netsuite/odbcclient/oaodbc64.sh
+
+# opencode
+export PATH=/home/jacob/.opencode/bin:$PATH

@@ -81,3 +81,27 @@ gitcheck() {
 }
 
 #alias nvim="/home/jacob/.bash_scripts/nvim.sh"
+
+create-shell() {
+    if [ -f shell.nix ]; then
+        echo "shell.nix already exists."
+    else
+        cat <<EOF > shell.nix
+{ pkgs ? import <nixpkgs> {} }:
+
+pkgs.mkShell {
+  buildInputs = with pkgs; [
+    # Add packages here
+    # hello
+    # git
+  ];
+
+  shellHook = ''
+    echo "Welcome to your development shell!"
+  '';
+}
+EOF
+        echo "Created shell.nix."
+    fi
+    nvim shell.nix
+}
