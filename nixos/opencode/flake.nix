@@ -1,5 +1,5 @@
 {
-  description = "OpenCode - Always Latest (Impure)";
+  description = "OpenCode Flake - Custom Build";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -9,31 +9,40 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-
-      # Fetches the file at run time.
-      # Note the name ends in .tar.gz so Nix knows how to unpack it.
-      binaryTarball = builtins.fetchurl {
-        url = "https://github.com/opencode-ai/opencode/releases/latest/download/opencode-linux-x86_64.tar.gz";
-        name = "opencode-latest.tar.gz"; 
-      };
+      
+      # 1. Define the version you saw in the installer
+      version = "1.1.20"; 
     in
     {
       packages.${system}.default = pkgs.stdenv.mkDerivation {
         pname = "opencode";
-        version = "latest";
+        inherit version;
 
-        src = binaryTarball;
+        # 2. Fetch the generic Linux binary (The same one the curl script downloads)
+        src = pkgs.fetchurl {
+          url = "https://github.com/opencode-ai/opencode/releases/download/v${version}/opencode-linux-x86_64.tar.gz";
+          # Nix will complain about the hash first. Copy the hash it gives you and paste it here.
+          sha256 = "sha256-0000000000000000000000000000000000000000000000000000"; 
+        };
 
-        # 1. Patch the binary to use Nix loader
-        nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+        # 3. The Magic Sauce: Auto-patching
+        # This hook automatically finds "bad" dynamic links (like /lib64/ld-linux...) 
+        # and replaces them with the correct paths in /nix/store.
+        nativeBuildInputs = [ 
+          pkgs.autoPatchelfHook 
+        ];
 
-        # 2. Link necessary libraries
+        # 4. Runtime Dependencies
+        # These are the libraries the binary likely needs. 
+        # Since it's a Go/BubbleTea app (based on standard AI agents), it usually needs these:
         buildInputs = with pkgs; [
           zlib
-          stdenv.cc.cc.lib
+          stdenv.cc.cc.lib # libstdc++
           openssl
         ];
 
+        # 5. Extract and Install
+        # The tarball usually contains just the binary. We copy it to $out/bin.
         sourceRoot = ".";
         installPhase = ''
           install -m755 -D opencode $out/bin/opencode
