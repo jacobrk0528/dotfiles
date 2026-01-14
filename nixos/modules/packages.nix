@@ -56,6 +56,8 @@ in
     remmina
     xrdp
     bibata-cursors
+
+	inputs.opencode-flake.packages.${pkgs.system}.default
   ];
 
   environment.variables = {
