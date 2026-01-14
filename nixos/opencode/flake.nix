@@ -1,5 +1,5 @@
 {
-  description = "OpenCode Flake - Custom Build";
+  description = "OpenCode - Fixed 1.1.20 (FHS)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -9,44 +9,44 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
+
+      version = "1.1.20";
       
-      # 1. Define the version you saw in the installer
-      version = "1.1.20"; 
+      # 1. Download the raw binary (Impure)
+      # We change the name to force a redownload
+      src = builtins.fetchurl {
+        url = "https://github.com/anomalyco/opencode/releases/download/v${version}/opencode-linux-x64.tar.gz";
+        name = "opencode-${version}-v1.tar.gz";
+      };
+
+      # 2. Extract it WITHOUT patching
+      # We just park the binary in a safe place
+      unpatched = pkgs.runCommand "opencode-extracted" {} ''
+        mkdir -p $out/libexec
+        tar -xzf ${src} -C $out/libexec
+        # Ensure it's executable
+        chmod +x $out/libexec/opencode
+      '';
+
     in
     {
-      packages.${system}.default = pkgs.stdenv.mkDerivation {
-        pname = "opencode";
-        inherit version;
-
-        # 2. Fetch the generic Linux binary (The same one the curl script downloads)
-        src = pkgs.fetchurl {
-          url = "https://github.com/opencode-ai/opencode/releases/download/v${version}/opencode-linux-x86_64.tar.gz";
-          # Nix will complain about the hash first. Copy the hash it gives you and paste it here.
-          sha256 = "sha256-0000000000000000000000000000000000000000000000000000"; 
-        };
-
-        # 3. The Magic Sauce: Auto-patching
-        # This hook automatically finds "bad" dynamic links (like /lib64/ld-linux...) 
-        # and replaces them with the correct paths in /nix/store.
-        nativeBuildInputs = [ 
-          pkgs.autoPatchelfHook 
-        ];
-
-        # 4. Runtime Dependencies
-        # These are the libraries the binary likely needs. 
-        # Since it's a Go/BubbleTea app (based on standard AI agents), it usually needs these:
-        buildInputs = with pkgs; [
+      # 3. Create a wrapper that simulates a standard Linux environment
+      packages.${system}.default = pkgs.buildFHSUserEnv {
+        name = "opencode";
+        
+        # OpenCode needs these tools to be available inside the bubble
+        targetPkgs = pkgs: with pkgs; [
           zlib
-          stdenv.cc.cc.lib # libstdc++
           openssl
+          icu
+          git      # Essential for an AI coding agent
+          ripgrep  # Essential for searching files
+          curl
+          nodejs   # Often needed for sub-scripts
         ];
 
-        # 5. Extract and Install
-        # The tarball usually contains just the binary. We copy it to $out/bin.
-        sourceRoot = ".";
-        installPhase = ''
-          install -m755 -D opencode $out/bin/opencode
-        '';
+        # Run the unpatched binary inside the bubble
+        runScript = "${unpatched}/libexec/opencode";
       };
     };
 }
