@@ -12,40 +12,37 @@
 
       version = "1.1.20";
       
-      # 1. Download the raw binary (Impure)
-      # We change the name to force a redownload
+      # 1. Download the raw binary
       src = builtins.fetchurl {
         url = "https://github.com/anomalyco/opencode/releases/download/v${version}/opencode-linux-x64.tar.gz";
         name = "opencode-${version}-v1.tar.gz";
       };
 
       # 2. Extract it WITHOUT patching
-      # We just park the binary in a safe place
       unpatched = pkgs.runCommand "opencode-extracted" {} ''
         mkdir -p $out/libexec
         tar -xzf ${src} -C $out/libexec
-        # Ensure it's executable
         chmod +x $out/libexec/opencode
       '';
 
     in
     {
-      # 3. Create a wrapper that simulates a standard Linux environment
-      packages.${system}.default = pkgs.buildFHSUserEnv {
+      # 3. Create the FHS environment
+      # CHANGED: buildFHSUserEnv -> buildFHSEnv
+      packages.${system}.default = pkgs.buildFHSEnv {
         name = "opencode";
         
-        # OpenCode needs these tools to be available inside the bubble
         targetPkgs = pkgs: with pkgs; [
           zlib
           openssl
           icu
-          git      # Essential for an AI coding agent
-          ripgrep  # Essential for searching files
+          git
+          ripgrep
           curl
-          nodejs   # Often needed for sub-scripts
+          nodejs
+          stdenv.cc.cc.lib # Added C++ libs which are often needed
         ];
 
-        # Run the unpatched binary inside the bubble
         runScript = "${unpatched}/libexec/opencode";
       };
     };
