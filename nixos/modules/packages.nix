@@ -9,6 +9,9 @@ in
   # Allow unfree packages (Chrome, Nvidia, Slack, etc)
   nixpkgs.config.allowUnfree = true;
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nixpkgs.config.permittedInsecurePackages = [
+    "ventoy-1.1.10"
+  ];
 
   environment.systemPackages = with pkgs; [
     # --- Core ---
