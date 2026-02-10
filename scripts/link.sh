@@ -12,9 +12,9 @@ link_file() {
     # Create the parent directory if it doesn't exist
     mkdir -p "$(dirname "$dest")"
     
-    # Check if a real file exists there (not a link) and back it up
-    if [ -f "$dest" ] && [ ! -L "$dest" ]; then
-        echo "Backing up existing file: $dest -> $dest.backup"
+    # Check if a real file/folder exists there (not a link) and back it up
+    if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+        echo "Backing up existing: $dest -> $dest.backup"
         mv "$dest" "$dest.backup"
     fi
 

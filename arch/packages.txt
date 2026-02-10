@@ -1,0 +1,71 @@
+# --- Core ---
+vim
+neovim
+wget
+git
+zip
+unzip
+unixodbc
+psmisc
+ripgrep
+fzf
+python
+gcc
+make
+go
+nodejs
+npm
+tree-sitter
+tree
+
+# --- Hardware & Drivers ---
+nvidia
+nvidia-utils
+lib32-nvidia-utils
+bluez
+bluez-utils
+pipewire
+pipewire-audio
+pipewire-alsa
+pipewire-pulse
+wireplumber
+
+# --- Desktop & UI ---
+hyprland
+hyprpaper
+waybar
+wofi
+blueman
+ghostty
+slurp
+grim
+pavucontrol
+wl-clipboard
+thunar
+thunar-archive-plugin
+thunar-volman
+gvfs
+tumbler
+
+# --- Apps (AUR) ---
+google-chrome
+slack-desktop
+postman-bin
+remmina
+xrdp
+woeusb-gui
+google-cloud-cli
+opencode-bin
+
+# --- Development ---
+redis
+mariadb
+php
+php-redis
+composer
+
+# --- Themes & Fonts ---
+bibata-cursor-theme
+otf-font-awesome
+ttf-jetbrains-mono-nerd
+ttf-fira-code-nerd

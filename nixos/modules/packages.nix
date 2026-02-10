@@ -19,6 +19,7 @@ in
     neovim
     wget
     git
+    zip
     unzip
     unixODBC
     psmisc
@@ -51,6 +52,7 @@ in
     blueman
     ghostty
     tmux
+    woeusb
 
     # --- Apps ---
     google-chrome
@@ -59,6 +61,7 @@ in
     remmina
     xrdp
     bibata-cursors
+    google-cloud-sdk
 
 	inputs.opencode-flake.packages.${pkgs.system}.default
   ];
