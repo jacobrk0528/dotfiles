@@ -40,6 +40,7 @@ in
     stdenv.cc.cc.lib
     zlib
     redis
+    bun
 
     # --- Custom PHP & Composer ---
     myPhp

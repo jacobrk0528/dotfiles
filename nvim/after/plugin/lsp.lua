@@ -279,7 +279,7 @@ local server_configs = {
 	},
 
 	-- JS/TS LSP with Blade support
-	tsserver = {
+	ts_ls = {
 		filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact", "blade" },
 		init_options = {
 			hostInfo = "neovim",
@@ -316,6 +316,7 @@ require("mason-lspconfig").setup({
 		"pyright",
 		"rust_analyzer",
 		"tailwindcss",
+		"ts_ls",
 	},
 	handlers = {
 		function(server_name)
@@ -324,6 +325,17 @@ require("mason-lspconfig").setup({
 			require("lspconfig")[server_name].setup(config)
 		end,
 	},
+})
+
+-- =============================================
+-- MASON-NULL-LS SETUP
+-- =============================================
+require("mason-null-ls").setup({
+	ensure_installed = {
+		"prettierd",
+		"stylua",
+	},
+	automatic_installation = true,
 })
 
 -- =============================================
@@ -373,6 +385,9 @@ local null_ls = require("null-ls")
 null_ls.setup({
 	sources = {
 		null_ls.builtins.formatting.stylua,
+		null_ls.builtins.formatting.prettierd.with({
+			filetypes = { "javascript", "typescript", "javascriptreact", "typescriptreact", "css", "html", "json", "yaml", "markdown" },
+		}),
 		null_ls.builtins.formatting.prettier.with({
 			filetypes = { "blade" },
 			command = "npx",
