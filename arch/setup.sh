@@ -51,7 +51,30 @@ else
     sudo systemctl enable --now mariadb
 fi
 
-# 7. Zsh & Oh My Zsh
+# 7. PostgreSQL Setup
+if [ ! -d "/var/lib/postgres/data" ]; then
+    echo "🐘 Initializing PostgreSQL..."
+    sudo -u postgres initdb -D /var/lib/postgres/data
+    
+    # Enable trust authentication in pg_hba.conf
+    sudo sed -i "s/^local   all             all                                     peer/local   all             all                                     trust/" /var/lib/postgres/data/pg_hba.conf
+    sudo sed -i "s/^host    all             all             127.0.0.1\/32            scram-sha-256/host    all             all             127.0.0.1\/32            trust/" /var/lib/postgres/data/pg_hba.conf
+    sudo sed -i "s/^host    all             all             ::1\/128                 scram-sha-256/host    all             all             ::1\/128                 trust/" /var/lib/postgres/data/pg_hba.conf
+
+    sudo systemctl enable --now postgresql
+    
+    echo "👤 Setting up PostgreSQL user 'jacob' and database..."
+    sleep 3
+    sudo -u postgres psql -c "CREATE USER jacob WITH SUPERUSER;" || true
+    sudo -u postgres psql -c "CREATE DATABASE \"tomBombadil_local\" OWNER jacob;" || true
+    
+    # Enable pgvector if installed
+    sudo -u postgres psql -d "tomBombadil_local" -c "CREATE EXTENSION IF NOT EXISTS vector;" || true
+else
+    sudo systemctl enable --now postgresql
+fi
+
+# 8. Zsh & Oh My Zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     echo "🐚 Installing Oh My Zsh..."
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended

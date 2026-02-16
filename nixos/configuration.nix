@@ -51,15 +51,35 @@ hardware.enableAllFirmware = true;
 
   # --- Services ---
   services.openssh.enable = true;
-services.mysql = {
-enable = true;
-package = pkgs.mariadb;
-};
+  services.mysql = {
+    enable = true;
+      package = pkgs.mariadb;
+  };
 
-services.redis.servers."" = {
-enable= true;
-port = 6379;
-};
+  services.redis.servers."" = {
+    enable= true;
+    port = 6379;
+  };
+
+  services.postgresql = {
+    enable = true;
+    package = pkgs.postgresql_16.withPackages(ps: [ ps.pgvector ]);
+    
+    ensureDatabases = [ "tomBombadil_local" ];
+  
+    ensureUsers = [
+      {
+        name = "jacob";
+      }
+    ];
+  
+    authentication = pkgs.lib.mkForce ''
+      # TYPE  DATABASE        USER            ADDRESS                 METHOD
+      local   all             all                                     trust
+      host    all             all             127.0.0.1/32            trust
+      host    all             all             ::1/128                 trust
+    '';
+  };
 
   # --- System State ---
   system.stateVersion = "25.11";

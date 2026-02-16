@@ -1,5 +1,5 @@
 {
-  description = "OpenCode - Fixed 1.1.20 (FHS)";
+  description = "OpenCode - Fixed 1.1.65 (FHS)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -10,7 +10,7 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
 
-      version = "1.1.20";
+      version = "1.1.65";
       
       # 1. Download the raw binary
       src = builtins.fetchurl {

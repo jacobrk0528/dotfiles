@@ -9,12 +9,15 @@ unixodbc
 psmisc
 ripgrep
 fzf
+jq
 python
 gcc
 make
 go
 nodejs
 npm
+bun
+biome
 tree-sitter
 tree
 
@@ -56,10 +59,12 @@ xrdp
 woeusb-gui
 google-cloud-cli
 opencode-bin
+pgvector
 
 # --- Development ---
 redis
 mariadb
+postgresql
 php
 php-redis
 composer

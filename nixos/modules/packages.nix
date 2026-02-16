@@ -28,7 +28,8 @@ in
     pavucontrol
     wl-clipboard
     ripgrep
-	fzf
+    fzf
+    jq
 
     # --- Languages ---
     nodejs_22
@@ -41,6 +42,7 @@ in
     zlib
     redis
     bun
+    biome
 
     # --- Custom PHP & Composer ---
     myPhp
