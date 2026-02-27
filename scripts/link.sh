@@ -28,6 +28,10 @@ link_file() {
 link_file "hypr"        "$HOME/.config/hypr"
 link_file "nvim"        "$HOME/.config/nvim"
 link_file "waybar"      "$HOME/.config/waybar"
+link_file "fontconfig"  "$HOME/.config/fontconfig"
+link_file "ghostty"     "$HOME/.config/ghostty"
+link_file "mimeapps.list" "$HOME/.config/mimeapps.list"
+link_file "gitconfig"   "$HOME/.gitconfig"
 
 link_file "tmux"        "$HOME/.tmux"
 link_file "tmux.conf"   "$HOME/.tmux.conf"

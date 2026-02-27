@@ -4,3 +4,5 @@ mkdir -p ~/Documents/TrinityRoad/{scripts,local-git}
 mkdir -p ~/Documents/Personal
 mkdir -p ~/Downloads
 mkdir -p ~/Pictures
+mkdir -p ~/.config/composer
+mkdir -p ~/.local/bin

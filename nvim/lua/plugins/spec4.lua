@@ -109,8 +109,5 @@ return {
 	},
 	{
 		"jwalton512/vim-blade",
-		config = function()
-			vim.cmd("autocmd BufNewFile,BufRead *.blade.php setlocal filetype=blade")
-		end,
 	},
 }

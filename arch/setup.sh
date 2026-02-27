@@ -33,7 +33,7 @@ paru -S --needed --noconfirm - < "$(dirname "$0")/packages.txt"
 # 5. Enable Services
 echo "⚙️ Enabling services..."
 sudo systemctl enable --now bluetooth
-sudo systemctl enable --now redis
+sudo systemctl enable --now valkey
 sudo systemctl enable --now sshd
 sudo systemctl enable --now NetworkManager
 
@@ -43,10 +43,10 @@ if [ ! -d "/var/lib/mysql/mysql" ]; then
     sudo mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
     sudo systemctl enable --now mariadb
     
-    echo "👤 Setting up MariaDB user 'jacob'..."
+    echo "👤 Setting up MariaDB user '$USER'..."
     # Wait for service to be ready
     sleep 3
-    sudo mariadb -e "CREATE USER IF NOT EXISTS 'jacob'@'localhost' IDENTIFIED BY ''; GRANT ALL PRIVILEGES ON *.* TO 'jacob'@'localhost' WITH GRANT OPTION; FLUSH PRIVILEGES;"
+    sudo mariadb -e "CREATE USER IF NOT EXISTS '$USER'@'localhost' IDENTIFIED BY ''; GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' WITH GRANT OPTION; FLUSH PRIVILEGES;"
 else
     sudo systemctl enable --now mariadb
 fi
@@ -63,10 +63,10 @@ if [ ! -d "/var/lib/postgres/data" ]; then
 
     sudo systemctl enable --now postgresql
     
-    echo "👤 Setting up PostgreSQL user 'jacob' and database..."
+    echo "👤 Setting up PostgreSQL user '$USER' and database..."
     sleep 3
-    sudo -u postgres psql -c "CREATE USER jacob WITH SUPERUSER;" || true
-    sudo -u postgres psql -c "CREATE DATABASE \"tomBombadil_local\" OWNER jacob;" || true
+    sudo -u postgres psql -c "CREATE USER \"$USER\" WITH SUPERUSER;" || true
+    sudo -u postgres psql -c "CREATE DATABASE \"tomBombadil_local\" OWNER \"$USER\";" || true
     
     # Enable pgvector if installed
     sudo -u postgres psql -d "tomBombadil_local" -c "CREATE EXTENSION IF NOT EXISTS vector;" || true
@@ -85,5 +85,9 @@ if [ "$SHELL" != "/usr/bin/zsh" ]; then
     echo "🐚 Changing default shell to Zsh..."
     sudo chsh -s /usr/bin/zsh "$USER"
 fi
+
+# 9. Update Font Cache
+echo "🖋️ Updating font cache..."
+fc-cache -fv
 
 echo "✅ Arch Linux setup logic complete!"

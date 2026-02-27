@@ -106,3 +106,5 @@ EOF
     fi
     nvim shell.nix
 }
+
+alias netsuite='isql Netsuite jkrebs@trinityroad.com "1du\$AsFjT1790"'

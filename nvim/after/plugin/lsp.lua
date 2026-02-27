@@ -374,12 +374,6 @@ cmp.setup({
 -- =============================================
 
 -- ftdetect/blade.lua
-vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
-	pattern = "*.blade.php",
-	callback = function()
-		vim.bo.filetype = "blade"
-	end,
-})
 
 local null_ls = require("null-ls")
 null_ls.setup({
