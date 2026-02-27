@@ -1,6 +1,12 @@
 require("jkrebs")
 require("config.lazy")
 
+vim.filetype.add({
+	pattern = {
+		[".*%.blade%.php"] = "blade",
+	},
+})
+
 vim.api.nvim_create_autocmd("FileType", {
     pattern = "php",
     callback = function()

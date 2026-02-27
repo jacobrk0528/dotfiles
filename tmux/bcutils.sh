@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DIR="/home/jacob/Documents/TrinityRoad/local-git/bc_utils"
+DIR="/home/jkrebs/Documents/TrinityRoad/local-git/bc_utils"
 NAME="bcUtils"
 
 tmux new-session -d -s $NAME

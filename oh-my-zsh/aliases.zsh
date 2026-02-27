@@ -106,3 +106,5 @@ EOF
     fi
     nvim shell.nix
 }
+
+alias netsuite='isql Netsuite NS_USER_PLACEHOLDER "1du\$AsFjT1790"'

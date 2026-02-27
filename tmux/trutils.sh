@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
-DIR="/home/jacob/Documents/TrinityRoad/local-git/trUtils"
+DIR="/home/jkrebs/Documents/TrinityRoad/local-git/trUtils"
 NAME="trUtils"
 
 cd $DIR
 tmux new-session -d -s $NAME
 
 tmux new-window -t $NAME:0
-tmux send-keys -t $NAME:0 "cd $DIR && opencode" C-m
+tmux send-keys -t $NAME:0 "cd $DIR" C-m
+tmux send-keys -t $NAME:0 "opencode" C-m
 
 tmux new-window -t $NAME:1
 tmux send-keys -t $NAME:1 "cd $DIR" C-m

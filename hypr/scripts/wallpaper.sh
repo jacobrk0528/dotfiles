@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 DIR="$HOME/.config/hypr/wallpapers"
 RANDOM_WALL=$(find "$DIR" -name "*.png" | shuf -n 1)
@@ -14,4 +14,9 @@ if ! pgrep -x "hyprpaper" > /dev/null; then
     sleep 2
 fi
 
+hyprctl hyprpaper preload "$RANDOM_WALL"
 hyprctl hyprpaper wallpaper ",$RANDOM_WALL"
+
+# Give it a moment to apply before unloading others
+sleep 1
+hyprctl hyprpaper unload all
