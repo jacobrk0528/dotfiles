@@ -12,28 +12,41 @@ echo "🖥️  Starting Dotfiles Installation..."
 ./scripts/makedirs.sh
 
 # 2. Detect OS and Run System Setup
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    case $ID in
-        arch)
-            echo "🏹 Arch Linux detected."
-            ./arch/setup.sh
-            ;;
-        nixos)
-            echo "❄️  NixOS detected."
-            ./scripts/nixos-setup.sh
-            # Trigger rebuild
-            echo "🔄 Rebuilding NixOS system..."
-            sudo nixos-rebuild switch --flake /etc/nixos
-            ;;
-        *)
-            echo "⚠️  Unsupported OS: $ID"
-            echo "Skipping system-level setup..."
-            ;;
-    esac
-else
-    echo "⚠️  /etc/os-release not found. Skipping system-level setup..."
-fi
+OS_NAME="$(uname -s)"
+
+case "$OS_NAME" in
+    Darwin)
+        echo "🍎  macOS detected."
+        ./mac/setup.sh
+        ;;
+    Linux)
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            case $ID in
+                arch)
+                    echo "🏹 Arch Linux detected."
+                    ./arch/setup.sh
+                    ;;
+                nixos)
+                    echo "❄️  NixOS detected."
+                    ./scripts/nixos-setup.sh
+                    echo "🔄 Rebuilding NixOS system..."
+                    sudo nixos-rebuild switch --flake /etc/nixos
+                    ;;
+                *)
+                    echo "⚠️  Unsupported Linux distribution: $ID"
+                    echo "Skipping system-level setup..."
+                    ;;
+            esac
+        else
+            echo "⚠️  /etc/os-release not found. Skipping system-level setup..."
+        fi
+        ;;
+    *)
+        echo "⚠️  Unsupported OS: $OS_NAME"
+        echo "Skipping system-level setup..."
+        ;;
+esac
 
 # 3. Shared: Link Dotfiles
 ./scripts/link.sh

@@ -1,6 +1,6 @@
 # 🛠️ jkrebs Dotfiles
 
-My personal dotfiles, optimized for a high-performance development environment on both **NixOS** and **Arch Linux**.
+My personal dotfiles, optimized for a high-performance development environment on **macOS**, **NixOS**, and **Arch Linux**.
 
 ## 🚀 One-Shot Installation
 
@@ -14,9 +14,10 @@ chmod +x install.sh
 ```
 
 ### What this does:
-1.  **Detects OS**: Automatically switches between NixOS and Arch logic.
+1.  **Detects OS**: Automatically switches between macOS, NixOS, and Arch logic.
 2.  **Creates Workspaces**: Sets up `~/Documents/TrinityRoad`, `~/Documents/Personal`, etc.
 3.  **System Setup**:
+    *   **macOS**: Installs Command Line Tools, bootstraps Homebrew, runs `brew bundle` with `mac/Brewfile`, and configures MariaDB/PostgreSQL/Valkey via `brew services`.
     *   **NixOS**: Links `/etc/nixos` to this repo and runs `nixos-rebuild switch`.
     *   **Arch**: Enables `multilib`, installs `paru`, installs all packages, and configures MariaDB/Valkey.
 4.  **Symlinks Configs**: Links Neovim, Hyprland, Waybar, Tmux, Ghostty, and Zsh settings to your home directory.
@@ -54,6 +55,13 @@ Since some parts of a system cannot (or should not) be automated, follow this ch
 *   Enables Nvidia proprietary drivers and Pipewire audio.
 *   MariaDB is initialized with a passwordless user '$USER'.
 *   Redis is replaced by **Valkey** (Arch's default).
+
+## 🍎 macOS Notes
+*   Requires the Xcode Command Line Tools; the installer will prompt you if they are missing.
+*   Uses Homebrew + `brew bundle` with `mac/Brewfile` to keep formulas and casks in sync (Git, Neovim, Ghostty, cloud SDKs, databases, fonts, etc.).
+*   Automatically installs/updates Oh My Zsh and sets `/bin/zsh` as the default shell if needed.
+*   Initializes MariaDB, PostgreSQL 16 (with `pgvector`), and Valkey, then launches them via `brew services` so they persist across reboots.
+*   Fonts (JetBrains Mono Nerd Font + Font Awesome) are installed through `homebrew/cask-fonts` to match the Arch/Nix setups.
 
 ## 📂 Structure
 *   `hypr/`: Hyprland & Hyprpaper configuration.

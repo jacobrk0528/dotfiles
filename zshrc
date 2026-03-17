@@ -5,11 +5,15 @@ HYPHEN_INSENSITIVE="true"
 COMPLETION_WAITING_DOTS="true"
 HIST_STAMPS="yyyy-mm-dd"
 
-plugins=(
+	plugins=(
 		git
 		web-search
 		history-substring-search
+		zsh-autosuggestions
+		zsh-syntax-highlighting
 	)
+
+source $ZSH/oh-my-zsh.sh
 
 export EDITOR='nvim'
 
@@ -21,10 +25,6 @@ export PATH="$PATH:$HOME/.rvm/bin"
 
 # opencode
 export PATH=$HOME/.opencode/bin:$PATH
-
-source $ZSH/oh-my-zsh.sh
-source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 alias hyprland="uwsm start hyprland-uwsm.desktop"
 
