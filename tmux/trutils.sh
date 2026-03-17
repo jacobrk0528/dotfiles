@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DIR="/home/jkrebs/Documents/TrinityRoad/local-git/trUtils"
+DIR="$HOME/Documents/TrinityRoad/local-git/trUtils"
 NAME="trUtils"
 
 cd $DIR

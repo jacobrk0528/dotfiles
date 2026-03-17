@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DIR="/home/jkrebs/Documents/TrinityRoad/local-git/narsil"
+DIR="$HOME/Documents/TrinityRoad/local-git/narsil"
 NAME="narsil"
 SOURCE="source venv/bin/activate"
 

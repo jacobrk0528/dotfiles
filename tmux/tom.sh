@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DIR="/home/jkrebs/Documents/TrinityRoad/local-git/TomBombadil"
+DIR="$HOME/Documents/TrinityRoad/local-git/TomBombadil"
 NAME="tom"
 
 cd $DIR
