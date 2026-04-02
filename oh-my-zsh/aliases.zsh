@@ -107,4 +107,17 @@ EOF
     nvim shell.nix
 }
 
-alias netsuite='isql Netsuite NS_USER_PLACEHOLDER "1du\$AsFjT1790"'
+alias netsuite='isql Netsuite NS_USER_PLACEHOLDER "NS_PASSWORD_PLACEHOLDER"'
+
+alias whichmodel='echo -e "\n\033[1;34mOpenCode Zen 2026 Model Guidance\033[0m"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "Model Name" "In $/1M" "Out $/1M" "Best For..."; \
+printf "%.100s\n" "----------------------------------------------------------------------------------------------------"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "Trinity Large (Pre)" "FREE" "FREE" "Junior Dev / First Drafts"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "Big Pickle (Stealth)" "FREE" "FREE" "Experimental Frontier Tasks"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "MiniMax M2.5" "\$0.30" "\$1.20" "Daily Driver / Feature Build"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "Gemini 3 Flash" "\$0.50" "\$3.00" "PROJECT MANAGER / Full Repo"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "Kimi K2.5 (Thinking)" "\$0.60" "\$3.00" "Complex Debugging Logic"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "GPT-5.3 Codex" "\$1.75" "\$14.00" "Precise Terminal/DevOps"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "Gemini 3.1 Pro" "\$2.00" "\$12.00" "High-Context Engineering"; \
+printf "%-22s | %-12s | %-12s | %-30s\n" "Claude 4.6 Opus" "\$5.00" "\$25.00" "The ARCHITECT / Hard Logic"; \
+echo -e "\n\033[1;33mPRO TIP:\033[0m Start with Trinity/MiniMax. Use Gemini for planning. Escalate to Opus only when stuck.\n"'

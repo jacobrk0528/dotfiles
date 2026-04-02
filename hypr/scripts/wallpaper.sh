@@ -1,10 +1,9 @@
 #!/bin/bash
 
-DIR="$HOME/.config/hypr/wallpapers"
-RANDOM_WALL=$(find "$DIR" -name "*.png" | shuf -n 1)
+WALL="$HOME/.config/hypr/wallpapers/minimal_slate.png"
 
-if [ -z "$RANDOM_WALL" ]; then
-    echo "Error: No wallpapers found in $DIR"
+if [ ! -f "$WALL" ]; then
+    echo "Error: Wallpaper not found at $WALL"
     exit 1
 fi
 
@@ -14,9 +13,8 @@ if ! pgrep -x "hyprpaper" > /dev/null; then
     sleep 2
 fi
 
-hyprctl hyprpaper preload "$RANDOM_WALL"
-hyprctl hyprpaper wallpaper ",$RANDOM_WALL"
+hyprctl hyprpaper preload "$WALL"
+hyprctl hyprpaper wallpaper ",$WALL"
 
-# Give it a moment to apply before unloading others
 sleep 1
 hyprctl hyprpaper unload all

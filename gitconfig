@@ -1,3 +1,5 @@
 [user]
 	email = NS_USER_PLACEHOLDER
 	name = Jacob
+[pull]
+	rebase = true

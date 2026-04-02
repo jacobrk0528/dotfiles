@@ -20,7 +20,6 @@ hyprpaper
 hyprshot
 jq
 lib32-nvidia-utils
-linux-firmware-git
 mariadb
 neovim
 nodejs
@@ -30,7 +29,6 @@ nvidia-utils
 opencode-bin
 otf-font-awesome
 paru
-paru-debug
 pavucontrol
 pgvector
 php

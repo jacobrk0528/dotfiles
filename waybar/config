@@ -1,35 +1,18 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 28,
-  "margin-top": 6,
-  "margin-left": 6,
-  "margin-right": 6,
+  "height": 32,
+  "margin-top": 12,
+  "margin-left": 12,
+  "margin-right": 12,
 
   "modules-left": ["hyprland/workspaces", "window"],
   "modules-center": ["clock"],
-  "modules-right": ["tray", "temperature#cpu", "temperature#gpu", "cpu", "memory", "network", "pulseaudio", "battery"],
-
-  "temperature#cpu": {
-    "hwmon-path": "/sys/class/hwmon/hwmon3/temp1_input",
-    "critical-threshold": 80,
-    "format": "{icon} {temperatureC}°C",
-    "format-icons": ["", "", ""],
-    "tooltip": true,
-    "tooltip-format": "CPU: {temperatureC}°C"
-  },
-
-  "temperature#gpu": {
-    "hwmon-path": "/sys/class/hwmon/hwmon2/temp1_input",
-    "critical-threshold": 80,
-    "format": "󰢮 {temperatureC}°C",
-    "tooltip": true,
-    "tooltip-format": "GPU: {temperatureC}°C"
-  },
+  "modules-right": ["custom/ai_sessions", "custom/stats", "pulseaudio", "battery"],
 
   "clock": {
-    "interval": 1,
-    "format": "{:%a %b %d  %H:%M:%S}",
+    "interval": 60,
+    "format": "{:%a %b %d  %H:%M}",
     "tooltip-format": "{:%A, %B %d %Y  %H:%M:%S}"
   },
 
@@ -47,46 +30,37 @@
     "disable-scroll": false
   },
 
-  
-"cpu": {
-  "interval": 5,
-  "format": "{icon} {usage}%",
-  "format-icons": [""]  // Nerd Font CPU
-},
+  "custom/stats": {
+    "format": "sys",
+    "exec": "/home/jkrebs/.config/waybar/scripts/stats",
+    "return-type": "json",
+    "interval": 5,
+    "tooltip": true
+  },
 
-"memory": {
-  "interval": 5,
-    "format": "{icon} {used:0.1f} GiB / {total:0.0f} GiB",
-  "format-icons": [""]  // FA microchip
-},
+  "custom/ai_sessions": {
+    "format": "{}",
+    "exec": "/home/jkrebs/dotfiles/waybar/scripts/ai_status",
+    "return-type": "json",
+    "interval": 2,
+    "tooltip": true
+  },
 
   "pulseaudio": {
     "format": "{icon} {volume}%",
-    "format-muted": "  muted",
-    "format-icons": ["", "", ""],
+    "format-muted": "󰖁 muted",
+    "format-icons": ["󰕿", "󰖀", "󰕾"],
+    "scroll-step": 5,
     "on-click": "pavucontrol"
-  },
-
-  "network": {
-    "format-wifi": "  {essid}",
-    "format-ethernet": "  wired",
-    "format-disconnected": "  offline",
-    "tooltip": true
   },
 
   "battery": {
     "states": { "warning": 25, "critical": 10 },
     "format": "{icon} {capacity}%",
-    "format-charging": " {capacity}%",
-    "format-plugged": " {capacity}%",
+    "format-charging": "chg {capacity}%",
+    "format-plugged": "{capacity}%",
     "format-alt": "{time}",
-    "format-icons": ["", "", "", "", ""],
+    "format-icons": ["▁", "▂", "▄", "▆", "█"],
     "hide-if-unavailable": true
-  },
-
-  "tray": {
-    "icon-size": 16,
-    "spacing": 6
   }
 }
-

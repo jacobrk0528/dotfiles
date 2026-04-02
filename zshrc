@@ -31,3 +31,8 @@ alias hyprland="uwsm start hyprland-uwsm.desktop"
 export ODBCSYSINI=/opt/netsuite/odbcclient
 export ODBCINI=/opt/netsuite/odbcclient/odbc64.ini
 source /opt/netsuite/odbcclient/oaodbc64.sh
+export PATH="$HOME/.local/bin:$PATH"
+
+source ~/.local/share/attention/attention.zsh
+
+source <(fzf --zsh)
