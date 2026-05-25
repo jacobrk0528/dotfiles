@@ -14,10 +14,10 @@
   # --- Bootloader ---
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
-boot.kernelParams = [ "usbcore.autosuspend=-1" ];
+  boot.kernelParams = [ "usbcore.autosuspend=-1" ];
 
-# --- Hardware ---
-hardware.enableAllFirmware = true;
+  # --- Hardware ---
+  hardware.enableAllFirmware = true;
 
   hardware.bluetooth = {
     enable = true;
@@ -41,38 +41,40 @@ hardware.enableAllFirmware = true;
   users.users.jacob = {
     isNormalUser = true;
     description = "Jacob Krebs";
-    extraGroups = [ "wheel" "networkmanager" "video" ];
+    extraGroups = [ "wheel" "networkmanager" "video" "adbusers" ];
     shell = pkgs.zsh;
-    # User specific packages (kept separate from system packages)
-    packages = with pkgs; [
-      tree
-    ];
   };
 
   # --- Services ---
   services.openssh.enable = true;
+  services.tailscale.enable = true;
+
+  # Android debugging
+  programs.adb.enable = true;
+
   services.mysql = {
     enable = true;
-      package = pkgs.mariadb;
+    package = pkgs.mariadb;
   };
 
-  services.redis.servers."" = {
-    enable= true;
+  services.valkey.servers."" = {
+    enable = true;
     port = 6379;
   };
 
   services.postgresql = {
     enable = true;
-    package = pkgs.postgresql_16.withPackages(ps: [ ps.pgvector ]);
-    
+    package = pkgs.postgresql_17.withPackages (ps: [ ps.pgvector ]);
+
     ensureDatabases = [ "tomBombadil_local" ];
-  
+
     ensureUsers = [
       {
         name = "jacob";
+        ensureClauses.superuser = true;
       }
     ];
-  
+
     authentication = pkgs.lib.mkForce ''
       # TYPE  DATABASE        USER            ADDRESS                 METHOD
       local   all             all                                     trust

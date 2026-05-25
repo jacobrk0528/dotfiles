@@ -1,17 +1,15 @@
 { config, pkgs, inputs, ... }:
 
 let
-  # Define your custom PHP with Redis enabled here, once.
-  # We use 'pkgs.php' because we are outside the 'with pkgs' block below.
-  myPhp = pkgs.php.withExtensions ({ enabled, all }: enabled ++ [ all.redis ]);
+  myPhp = pkgs.php.withExtensions ({ enabled, all }: enabled ++ [
+    all.redis
+    all.sqlite3
+    all.pdo_odbc
+  ]);
 in
 {
-  # Allow unfree packages (Chrome, Nvidia, Slack, etc)
   nixpkgs.config.allowUnfree = true;
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
-  nixpkgs.config.permittedInsecurePackages = [
-    "ventoy-1.1.10"
-  ];
 
   environment.systemPackages = with pkgs; [
     # --- Core ---
@@ -21,15 +19,52 @@ in
     git
     zip
     unzip
+    less
+    rsync
+    lsof
+    usbutils
     unixODBC
+    freetds
     psmisc
-    slurp
-    grim
-    pavucontrol
-    wl-clipboard
-    ripgrep
+
+    # --- Shell / Terminal ---
+    tmux
+    ghostty
     fzf
+    ripgrep
     jq
+    htop
+    cloc
+    cmake
+    tree
+    wev
+    bind           # dig, nslookup
+    nmap
+    whois
+    netcat-gnu
+    openbsd-netcat
+
+    # --- Wayland / Hyprland ---
+    grim
+    slurp
+    hyprpaper
+    hyprshot
+    hyprlock
+    cliphist
+    wl-clipboard
+    wl-clip-persist
+    uwsm
+    waybar
+    wofi
+
+    # --- Audio ---
+    pavucontrol
+
+    # --- Bluetooth ---
+    blueman
+
+    # --- File Manager ---
+    # (thunar handled in desktop.nix)
 
     # --- Languages ---
     nodejs_22
@@ -40,43 +75,54 @@ in
     tree-sitter
     stdenv.cc.cc.lib
     zlib
-    redis
     bun
     biome
+    flutter
+    cmake
 
     # --- Custom PHP & Composer ---
     myPhp
     myPhp.packages.composer
 
-    # --- Desktop Tools ---
-    waybar
-    hyprpaper
-    wofi
-    blueman
-    ghostty
-    tmux
-    woeusb
+    # --- Databases ---
+    pgadmin4-desktopmode
 
     # --- Apps ---
     google-chrome
+    firefox
+    chromium
+    zen-browser
     slack
     postman
+    obsidian
+    obs-studio
+    gimp
+    kolourpaint
     remmina
+    freerdp
     xrdp
+    android-studio
     bibata-cursors
     google-cloud-sdk
 
-	inputs.opencode-flake.packages.${pkgs.system}.default
+    # --- OpenCode ---
+    inputs.opencode-flake.packages.${pkgs.system}.default
+
+    # NOTE: msodbcsql / mssql-tools not available in nixpkgs (proprietary).
+    # Install manually via Microsoft's repo or use freetds as an alternative.
+    # NOTE: tradingview not available in nixpkgs. Install via AppImage/AUR equivalent.
   ];
 
   environment.variables = {
     XCURSOR_THEME = "Bibata-Modern-Ice";
     XCURSOR_SIZE = "24";
+    ANDROID_HOME = "$HOME/Android/Sdk";
   };
 
   fonts.packages = with pkgs; [
     font-awesome
     nerd-fonts.jetbrains-mono
     nerd-fonts.fira-code
+    noto-fonts-cjk-sans
   ];
 }
