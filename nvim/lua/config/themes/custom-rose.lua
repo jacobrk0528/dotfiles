@@ -1,5 +1,5 @@
 function RosePine_Theme()
-    vim.cmd("colorscheme catppuccin-mocha") -- Using Catppuccin-mocha as a base
+    vim.cmd("colorscheme rose-pine") -- Using Rose Pine as a base
     vim.cmd([[set guicursor=n-v-c:block-Cursor\/lCursor,i-ci-ve:ver25-Cursor\/lCursor,r-cr:hor20,o:hor50]])
 
     -- Base colors inspired by Rosé Pine Dark but with custom variations

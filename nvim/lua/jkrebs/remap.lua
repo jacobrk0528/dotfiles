@@ -2,9 +2,6 @@
 -- Neovim Keymaps Configuration
 -- =============================================
 
--- Leader key
-vim.g.mapleader = " " -- Use space as leader
-
 -- =============================================
 -- General Mappings
 -- =============================================
@@ -106,3 +103,20 @@ vim.keymap.set("n", "<C-H>", "<C-w>h", { noremap = true })
 vim.keymap.set("n", "<C-J>", "<C-w>j", { noremap = true })
 vim.keymap.set("n", "<C-K>", "<C-w>k", { noremap = true })
 vim.keymap.set("n", "<C-L>", "<C-w>l", { noremap = true })
+
+-- Toggle practice mode (disables autocomplete, diagnostics, AI suggestions; keeps formatting)
+local practice_mode = false
+vim.keymap.set("n", "<leader>tc", function()
+  practice_mode = not practice_mode
+  if practice_mode then
+    vim.diagnostic.enable(false)
+    require("cmp").setup({ enabled = false })
+    vim.cmd("SupermavenStop")
+    print("Practice mode ON")
+  else
+    vim.diagnostic.enable(true)
+    require("cmp").setup({ enabled = true })
+    vim.cmd("SupermavenStart")
+    print("Practice mode OFF")
+  end
+end, { desc = "Toggle practice mode" })

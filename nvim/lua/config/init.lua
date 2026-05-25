@@ -1,5 +1,5 @@
-require("jkrebs.remap")
 require("jkrebs.set")
+require("jkrebs.remap")
 
 vim.api.nvim_create_autocmd("VimEnter", {
   callback = function()
