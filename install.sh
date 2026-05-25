@@ -12,7 +12,10 @@ echo "🖥️  Starting Dotfiles Installation..."
 ./scripts/makedirs.sh
 
 # 2. Detect OS and Run System Setup
-if [ -f /etc/os-release ]; then
+if [[ "$(uname)" == "Darwin" ]]; then
+    echo "🍎 macOS detected."
+    ./mac/setup.sh
+elif [ -f /etc/os-release ]; then
     . /etc/os-release
     case $ID in
         arch)
@@ -32,7 +35,7 @@ if [ -f /etc/os-release ]; then
             ;;
     esac
 else
-    echo "⚠️  /etc/os-release not found. Skipping system-level setup..."
+    echo "⚠️  Unknown OS. Skipping system-level setup..."
 fi
 
 # 3. Shared: Link Dotfiles
