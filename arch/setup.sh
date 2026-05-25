@@ -36,6 +36,8 @@ sudo systemctl enable --now bluetooth
 sudo systemctl enable --now valkey
 sudo systemctl enable --now sshd
 sudo systemctl enable --now NetworkManager
+sudo systemctl enable --now tailscaled
+sudo systemctl enable --now rtkit-daemon
 
 # 6. MariaDB Setup
 if [ ! -d "/var/lib/mysql/mysql" ]; then
