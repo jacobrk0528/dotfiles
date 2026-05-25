@@ -11,12 +11,16 @@ alias c='clear'
 # edit this file
 alias editzsh='sudo vim ~/dotfiles/zshrc'
 alias editzsha='nvim ~/dotfiles/oh-my-zsh/aliases.zsh'
-alias edithypr='nvim ~/dotfiles/hypr/hyprland.conf'
+alias edithypr='nvim ~/dotfiles/hypr/hyprland.lua'
 alias editsys='sudo vim ~/dotfiles/nixos/'
 alias editdotfiles='nvim ~/dotfiles'
 
 # copy pwd
-alias cpwd='pwd|tr -d "\n"|pbcopy'
+if [[ "$(uname)" == "Darwin" ]]; then
+    alias cpwd='print -nr -- $PWD | pbcopy'
+else
+    alias cpwd='print -nr -- $PWD | wl-copy'
+fi
 
 # computer power options
 alias shutdown='shutdown now'
@@ -107,7 +111,8 @@ EOF
     nvim shell.nix
 }
 
-alias netsuite='isql Netsuite NS_USER_PLACEHOLDER "NS_PASSWORD_PLACEHOLDER"'
+alias netsuite='python3 /home/jkrebs/dotfiles/scripts/ns_export/main.py'
+alias netsuiteRaw='isql Netsuite NS_USER_PLACEHOLDER "NS_PASSWORD_PLACEHOLDER"'
 
 alias whichmodel='echo -e "\n\033[1;34mOpenCode Zen 2026 Model Guidance\033[0m"; \
 printf "%-22s | %-12s | %-12s | %-30s\n" "Model Name" "In $/1M" "Out $/1M" "Best For..."; \
