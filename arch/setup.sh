@@ -26,11 +26,21 @@ if ! command -v paru &> /dev/null; then
     rm -rf "$temp_dir"
 fi
 
-# 4. Install Packages
+# 4. Refresh mirrorlist
+echo "🔄 Refreshing mirrorlist with reflector..."
+sudo pacman -S --needed --noconfirm reflector
+sudo reflector --latest 20 --sort rate --save /etc/pacman.d/mirrorlist
+sudo pacman -Syy
+
+# 5. Full system upgrade (avoids partial-upgrade dependency conflicts)
+echo "⬆️ Upgrading existing packages..."
+paru -Syu --noconfirm
+
+# 6. Install Packages
 echo "📦 Installing packages from packages.txt..."
 paru -S --needed --noconfirm - < "$(dirname "$0")/packages.txt"
 
-# 5. Enable Services
+# 7. Enable Services
 echo "⚙️ Enabling services..."
 sudo systemctl enable --now bluetooth
 sudo systemctl enable --now valkey
@@ -39,7 +49,7 @@ sudo systemctl enable --now NetworkManager
 sudo systemctl enable --now tailscaled
 sudo systemctl enable --now rtkit-daemon
 
-# 6. MariaDB Setup
+# 8. MariaDB Setup
 if [ ! -d "/var/lib/mysql/mysql" ]; then
     echo "🗄️ Initializing MariaDB..."
     sudo mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
@@ -53,9 +63,13 @@ else
     sudo systemctl enable --now mariadb
 fi
 
-# 7. PostgreSQL Setup
-if [ ! -d "/var/lib/postgres/data" ]; then
+# 9. PostgreSQL Setup
+if [ ! -f "/var/lib/postgres/data/PG_VERSION" ]; then
     echo "🐘 Initializing PostgreSQL..."
+    # Clear any partial init left by a previous failed run
+    sudo rm -rf /var/lib/postgres/data
+    sudo mkdir -p /var/lib/postgres/data
+    sudo chown postgres:postgres /var/lib/postgres/data
     sudo -u postgres initdb -D /var/lib/postgres/data
     
     # Enable trust authentication in pg_hba.conf
@@ -76,7 +90,7 @@ else
     sudo systemctl enable --now postgresql
 fi
 
-# 8. Zsh & Oh My Zsh
+# 10. Zsh & Oh My Zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     echo "🐚 Installing Oh My Zsh..."
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
@@ -88,7 +102,7 @@ if [ "$SHELL" != "/usr/bin/zsh" ]; then
     sudo chsh -s /usr/bin/zsh "$USER"
 fi
 
-# 9. Update Font Cache
+# 11. Update Font Cache
 echo "🖋️ Updating font cache..."
 fc-cache -fv
 

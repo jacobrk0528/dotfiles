@@ -13,7 +13,6 @@ cloc
 cmake
 composer
 firefox
-flutter
 freerdp
 freetds
 fzf
@@ -70,6 +69,7 @@ pipewire-pulse
 postgresql
 postman-bin
 python
+reflector
 remmina
 ripgrep
 rsync
