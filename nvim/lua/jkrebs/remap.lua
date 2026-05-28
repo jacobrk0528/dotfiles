@@ -93,6 +93,15 @@ vim.keymap.set("n", "<leader>G<leader>d", 'ggVG"_d', { desc = "Delete entire fil
 vim.keymap.set("v", "<", "<gv", { desc = "Indent left and reselect" })
 vim.keymap.set("v", ">", ">gv", { desc = "Indent right and reselect" })
 
+-- Reflow long lines to colorcolumn width
+vim.keymap.set("n", "<leader>gq", function()
+  local cc = tonumber(vim.opt.colorcolumn:get()[1]) or 100
+  local saved_tw = vim.opt.textwidth:get()
+  vim.opt.textwidth = cc
+  vim.cmd("normal! ggVGgq")
+  vim.opt.textwidth = saved_tw
+end, { desc = "Reflow long lines to colorcolumn width" })
+
 -- Quit all windows
 vim.keymap.set("n", "<leader>q", "<cmd>qa<CR>", { desc = "Quit all windows" })
 

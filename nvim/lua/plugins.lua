@@ -248,7 +248,21 @@ intelephense = {
     end,
   },
 
-  { "ray-x/lsp_signature.nvim" },
+  {
+    "ray-x/lsp_signature.nvim",
+    event = "InsertEnter",
+    config = function()
+      require("lsp_signature").setup({
+        bind = true,
+        handler_opts = { border = "rounded" },
+        hint_enable = false,        -- no inline virtual text, just the float
+        floating_window = true,
+        floating_window_above_cur_line = true,
+        close_timeout = 4000,
+        toggle_key = "<C-k>",       -- manually toggle the float in insert mode
+      })
+    end,
+  },
 
   { "supermaven-inc/supermaven-nvim", config = function() require("supermaven-nvim").setup({}) end },
 
