@@ -39,6 +39,7 @@ local fileManager = "thunar"
 local menu        = "wofi --show drun --style ~/.config/wofi/style.css"
 local browser     = "google-chrome-stable"
 local slack       = "slack"
+local btop        = "btop"
 
 
 --------------------
@@ -51,6 +52,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("hyprpaper")
     hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/launch_logs.sh")
     hl.exec_cmd(slack,                { workspace = "special:slack" })
+	hl.exec_cmd(btop,                 { workspace = "special:btop" })
     hl.exec_cmd(terminal,             { workspace = "2" })
     hl.exec_cmd("sleep 2 && " .. browser, { workspace = "3" })
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
@@ -252,10 +254,7 @@ end
 hl.bind(mainMod .. " + semicolon",        hl.dsp.workspace.toggle_special("logs"))
 hl.bind(mainMod .. " + apostrophe",       hl.dsp.workspace.toggle_special("media"))
 hl.bind(mainMod .. " + period",           hl.dsp.workspace.toggle_special("slack"))
-
-hl.bind(mainMod .. " + SHIFT + semicolon",  hl.dsp.window.move({ workspace = "special:logs"  }))
-hl.bind(mainMod .. " + SHIFT + apostrophe", hl.dsp.window.move({ workspace = "special:media" }))
-hl.bind(mainMod .. " + SHIFT + period",     hl.dsp.window.move({ workspace = "special:slack" }))
+hl.bind(mainMod .. " + comma",         hl.dsp.workspace.toggle_special("btop"))
 
 -- Scroll through workspaces
 hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
