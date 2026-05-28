@@ -23,11 +23,23 @@ hl.env("LC_ALL",         "en_US.UTF-8")
 ---- MONITORS ----
 --------------------
 
--- See https://wiki.hypr.land/Configuring/Basics/Monitors/
-hl.monitor({ output = "DP-1",    mode = "1920x1080@100", position = "1920x330",  scale = 1 }) -- right
-hl.monitor({ output = "DP-2",    mode = "1920x1080@100", position = "0x0",       scale = 1 }) -- middle
-hl.monitor({ output = "DP-3",    mode = "1920x1080@60",  position = "-1920x530", scale = 1 }) -- left
-hl.monitor({ output = "HDMI-A-1",mode = "1920x1080@60",  position = "0x1080",    scale = 1 }) -- bottom
+local hostname = io.popen("cat /etc/hostname"):read("*l")
+
+local monitor_configs = {
+    terra = function()
+        hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@60", position = "0x0", scale = 1 }) -- bottom
+    end,
+    desktop = function()
+        hl.monitor({ output = "DP-1", mode = "1920x1080@100", position = "1920x330",  scale = 1 }) -- right
+        hl.monitor({ output = "DP-2", mode = "1920x1080@100", position = "0x0",       scale = 1 }) -- middle
+        hl.monitor({ output = "DP-3", mode = "1920x1080@60",  position = "-1920x530", scale = 1 }) -- left
+        hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@60", position = "0x1080", scale = 1 }) -- bottom
+    end,
+}
+
+if monitor_configs[hostname] then
+    monitor_configs[hostname]()
+end
 
 
 -----------------------
@@ -197,13 +209,24 @@ hl.window_rule({ match = { title = "narsil_log"   }, workspace = "special:logs" 
 ------------------------------
 
 -- See https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
-hl.workspace_rule({ workspace = "1",  monitor = "DP-3"    })
-hl.workspace_rule({ workspace = "2",  monitor = "DP-2"    })
-hl.workspace_rule({ workspace = "3",  monitor = "DP-1"    })
-hl.workspace_rule({ workspace = "4",  monitor = "DP-3"    })
-hl.workspace_rule({ workspace = "5",  monitor = "DP-2"    })
-hl.workspace_rule({ workspace = "6",  monitor = "DP-1"    })
-hl.workspace_rule({ workspace = "7",  monitor = "HDMI-A-1"})
+
+local workspace_configs = {
+    desktop = {
+        { workspace = "1",  monitor = "DP-3"    },
+        { workspace = "2",  monitor = "DP-2"    },
+        { workspace = "3",  monitor = "DP-1"    },
+        { workspace = "4",  monitor = "DP-3"    },
+        { workspace = "5",  monitor = "DP-2"    },
+        { workspace = "6",  monitor = "DP-1"    },
+        { workspace = "7",  monitor = "HDMI-A-1"},
+    },
+}
+
+if workspace_configs[hostname] then
+    for _, config in ipairs(workspace_configs[hostname]) do
+        hl.workspace_rule(config)
+    end
+end
 
 
 -----------------------
