@@ -9,7 +9,7 @@ tmux new-session -d -s $NAME
 
 tmux new-window -t $NAME:0
 tmux send-keys -t $NAME:0 "cd $DIR && $SOURCE && clear" C-m
-tmux send-keys -t $NAME:0 "opencode" C-m
+tmux send-keys -t $NAME:0 "claude" C-m
 
 tmux new-window -t $NAME:1
 tmux send-keys -t $NAME:1 "cd $DIR" C-m
