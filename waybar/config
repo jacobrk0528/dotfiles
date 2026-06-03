@@ -11,8 +11,8 @@
   "modules-right": ["custom/ai_sessions", "custom/stats", "pulseaudio", "battery"],
 
   "clock": {
-    "interval": 60,
-    "format": "{:%a %b %d  %H:%M}",
+    "interval": 1,
+    "format": "{:%a %b %d  %H:%M:%S}",
     "tooltip-format": "{:%A, %B %d %Y  %H:%M:%S}"
   },
 
