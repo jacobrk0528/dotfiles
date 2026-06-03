@@ -2,6 +2,7 @@ import pyodbc
 import csv
 import argparse
 import sys
+import os
 
 def main():
     parser = argparse.ArgumentParser(description="NetSuite SQL to CSV Export")
@@ -9,9 +10,13 @@ def main():
     parser.add_argument("-d", "--destination", help="The output .csv filename", default="output.csv")
     args = parser.parse_args()
 
-    dsn = "Netsuite"
-    user = "NS_USER_PLACEHOLDER"
-    pasw = "NS_PASSWORD_PLACEHOLDER"
+    dsn = os.environ.get("NS_DSN", "Netsuite")
+    user = os.environ.get("NS_USER")
+    pasw = os.environ.get("NS_PASSWORD")
+
+    if not user or not pasw:
+        print("Error: NS_USER and NS_PASSWORD environment variables must be set.", file=sys.stderr)
+        sys.exit(1)
 
     try:
         conn = pyodbc.connect(f'DSN={dsn};UID={user};PWD={pasw}')
