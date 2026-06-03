@@ -112,7 +112,7 @@ EOF
 }
 
 alias netsuite='python3 /home/jkrebs/dotfiles/scripts/ns_export/main.py'
-alias netsuiteRaw='isql Netsuite NS_USER_PLACEHOLDER "NS_PASSWORD_PLACEHOLDER"'
+alias netsuiteRaw='isql Netsuite $NS_USER "$NS_PASSWORD"'
 
 alias whichmodel='echo -e "\n\033[1;34mOpenCode Zen 2026 Model Guidance\033[0m"; \
 printf "%-22s | %-12s | %-12s | %-30s\n" "Model Name" "In $/1M" "Out $/1M" "Best For..."; \
