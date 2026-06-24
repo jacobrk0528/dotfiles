@@ -63,7 +63,13 @@ if [ "$SHELL" != "$(which zsh)" ]; then
     chsh -s "$(which zsh)"
 fi
 
-# 8. Android SDK
+# 8. Claude Code CLI
+if ! command -v claude &> /dev/null; then
+    echo "🤖 Installing Claude Code CLI..."
+    curl -fsSL https://claude.ai/install.sh | bash
+fi
+
+# 9. Android SDK
 if [ ! -d "$HOME/Library/Android/sdk" ]; then
     echo "📱 Android SDK not found. Open Android Studio to complete SDK setup."
 fi

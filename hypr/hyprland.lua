@@ -27,7 +27,10 @@ local hostname = io.popen("cat /etc/hostname"):read("*l")
 
 local monitor_configs = {
     terra = function()
-        hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@60", position = "0x0", scale = 1 }) -- bottom
+        hl.monitor({ output = "DP-4", mode = "1920x1080@60", position = "0x1080",  scale = 1 }) -- right
+        hl.monitor({ output = "DP-5", mode = "1920x1080@60", position = "0x0",       scale = 1 }) -- middle
+        hl.monitor({ output = "DP-3", mode = "1920x1080@60",  position = "1920x0", scale = 1 }) -- left
+        hl.monitor({ output = "HDMI-A-2", mode = "1920x1080@60", position = "-1920x0", scale = 1 }) -- bottom
     end,
     desktop = function()
         hl.monitor({ output = "DP-1", mode = "1920x1080@100", position = "1920x330",  scale = 1 }) -- right
@@ -149,7 +152,7 @@ hl.config({
         kb_rules   = "",
 
         follow_mouse = 1,
-        sensitivity  = -0.4,
+        sensitivity  = -0.5,
 
         touchpad = {
             natural_scroll = false,
@@ -211,6 +214,15 @@ hl.window_rule({ match = { title = "narsil_log"   }, workspace = "special:logs" 
 -- See https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
 
 local workspace_configs = {
+    terra = {
+		{ workspace = "1",  monitor = "HDMI-A-2"},
+        { workspace = "2",  monitor = "DP-5"    },
+		{ workspace = "3",  monitor = "DP-3"    },
+		{ workspace = "4",  monitor = "HDMI-A-2"},
+        { workspace = "5",  monitor = "DP-5"    },
+		{ workspace = "6",  monitor = "DP-3"    },
+		{ workspace = "7",  monitor = "DP-4"    },
+    },
     desktop = {
         { workspace = "1",  monitor = "DP-3"    },
         { workspace = "2",  monitor = "DP-2"    },
@@ -250,6 +262,10 @@ hl.bind(mainMod .. " + P",     hl.dsp.exec_cmd("pgadmin4"))
 hl.bind(mainMod .. " + B",     hl.dsp.exec_cmd(browser))
 hl.bind(mainMod .. " + S",     hl.dsp.exec_cmd(slack))
 hl.bind(mainMod .. " + CTRL + Q", hl.dsp.exit())
+
+-- Audio keybinds
+hl.bind(mainMod .. " + CTRL + e", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.04_C8_B0_29_C2_35.1")) -- Pixel earbuds
+hl.bind(mainMod .. " + CTRL + h", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
 
 -- Focus with vim keys
 hl.bind(mainMod .. " + h", hl.dsp.focus({ direction = "left"  }))

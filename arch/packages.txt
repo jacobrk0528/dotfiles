@@ -6,6 +6,7 @@ biome
 blueman
 bluez
 bluez-utils
+btop
 bun
 chromium
 cliphist
@@ -52,7 +53,6 @@ nvidia-utils
 obs-studio
 obsidian
 openbsd-netcat
-opencode-bin
 otf-font-awesome
 paru
 pavucontrol

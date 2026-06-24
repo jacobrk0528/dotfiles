@@ -51,7 +51,9 @@
     "format-muted": "󰖁 muted",
     "format-icons": ["󰕿", "󰖀", "󰕾"],
     "scroll-step": 5,
-    "on-click": "pavucontrol"
+    "on-click": "pavucontrol",
+    "on-click-right": "$HOME/.config/waybar/scripts/cycle_sink",
+    "tooltip-format": "{desc}"
   },
 
   "battery": {

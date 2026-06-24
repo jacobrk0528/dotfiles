@@ -44,7 +44,7 @@ Since some parts of a system cannot (or should not) be automated, follow this ch
 
 ### 4. Application Auth
 *   **Supermaven**: Re-authenticate in Neovim/Terminal.
-*   **Opencode**: Ensure your token is valid or re-login.
+*   **Claude Code**: Run `claude` and log in (auto-installed by `mac/setup.sh`; on Arch, install via `curl -fsSL https://claude.ai/install.sh | bash`).
 *   **Slack/Chrome**: Manual login required.
 
 ---

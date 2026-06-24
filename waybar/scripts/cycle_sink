@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# 1. Parse out the list of sinks from wpctl
+menu_options=$(wpctl status | sed -n '/^ ├─ Sinks:/,/^ ├─/p' | grep -E '[0-9]+\.' | sed 's/^[[:space:]]*//')
+
+# 2. Feed it into wofi's dmenu mode
+chosen=$(echo "$menu_options" | wofi --dmenu --prompt "Select Audio Output:")
+
+# 3. Clean up formatting and grab the correct numeric ID
+if [ -n "$chosen" ]; then
+    # Strip asterisks, vertical bars/box-drawing lines, and select the first sequence of digits
+    id=$(echo "$chosen" | tr -d '*││|' | awk '{for(i=1;i<=NF;i++) if($i ~ /^[0-9]+\.?$/) {print $i; exit}}' | tr -d '.')
+    
+    if [ -n "$id" ]; then
+        wpctl set-default "$id"
+    fi
+fi
