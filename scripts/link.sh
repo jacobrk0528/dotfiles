@@ -29,6 +29,7 @@ link_file() {
 link_file "nvim"        "$HOME/.config/nvim"
 link_file "ghostty"     "$HOME/.config/ghostty"
 link_file "gitconfig"   "$HOME/.gitconfig"
+link_file "sqlfluff"    "$HOME/.sqlfluff"
 link_file "tmux"        "$HOME/.tmux"
 link_file "tmux.conf"   "$HOME/.tmux.conf"
 link_file "zshrc"       "$HOME/.zshrc"

@@ -25,25 +25,10 @@ hl.env("LC_ALL",         "en_US.UTF-8")
 
 local hostname = io.popen("cat /etc/hostname"):read("*l")
 
-local monitor_configs = {
-    terra = function()
-        hl.monitor({ output = "DP-4", mode = "1920x1080@60", position = "0x1080",  scale = 1 }) -- right
-        hl.monitor({ output = "DP-5", mode = "1920x1080@60", position = "0x0",       scale = 1 }) -- middle
-        hl.monitor({ output = "DP-3", mode = "1920x1080@60",  position = "1920x0", scale = 1 }) -- left
-        hl.monitor({ output = "HDMI-A-2", mode = "1920x1080@60", position = "-1920x0", scale = 1 }) -- bottom
-    end,
-    desktop = function()
-        hl.monitor({ output = "DP-1", mode = "1920x1080@100", position = "1920x330",  scale = 1 }) -- right
-        hl.monitor({ output = "DP-2", mode = "1920x1080@100", position = "0x0",       scale = 1 }) -- middle
-        hl.monitor({ output = "DP-3", mode = "1920x1080@60",  position = "-1920x530", scale = 1 }) -- left
-        hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@60", position = "0x1080", scale = 1 }) -- bottom
-    end,
-}
-
-if monitor_configs[hostname] then
-    monitor_configs[hostname]()
-end
-
+hl.monitor({ output = "desc:Acer Technologies XB273 GX 0x15205CF0", mode = "1920x1080@60", position = "0x0", scale = 1 })		-- Middle
+hl.monitor({ output = "DP-8", mode = "1920x1080@60", position = "1920x0", scale = 1 })											-- Right
+hl.monitor({ output = "DP-7", mode = "1920x1080@60", position = "-1920x0", scale = 1 })											-- Left
+hl.monitor({ output = "desc:Acer Technologies PM161Q C 25230110E4HA1", mode = "1920x1080@60", position = "0x1080", scale = 1 }) -- Bottom
 
 -----------------------
 ---- MY PROGRAMS ----
@@ -213,15 +198,28 @@ hl.window_rule({ match = { title = "narsil_log"   }, workspace = "special:logs" 
 
 -- See https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
 
+------------------------------
+---- WORKSPACE ASSIGNMENTS ----
+------------------------------
+
+-- See https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
+
 local workspace_configs = {
     terra = {
-		{ workspace = "1",  monitor = "HDMI-A-2"},
-        { workspace = "2",  monitor = "DP-5"    },
-		{ workspace = "3",  monitor = "DP-3"    },
-		{ workspace = "4",  monitor = "HDMI-A-2"},
-        { workspace = "5",  monitor = "DP-5"    },
-		{ workspace = "6",  monitor = "DP-3"    },
-		{ workspace = "7",  monitor = "DP-4"    },
+		-- Left
+        { workspace = "1",  monitor = "DP-7" },
+        { workspace = "4",  monitor = "DP-7" },
+
+		-- Middle
+        { workspace = "2",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
+        { workspace = "5",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
+
+		-- Right
+        { workspace = "3",  monitor = "DP-8" },
+        { workspace = "6",  monitor = "DP-8" },
+
+		-- Bottom
+        { workspace = "7",  monitor = "desc:Acer Technologies PM161Q C 25230110E4HA1" },
     },
     desktop = {
         { workspace = "1",  monitor = "DP-3"    },
@@ -264,8 +262,11 @@ hl.bind(mainMod .. " + S",     hl.dsp.exec_cmd(slack))
 hl.bind(mainMod .. " + CTRL + Q", hl.dsp.exit())
 
 -- Audio keybinds
-hl.bind(mainMod .. " + CTRL + e", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.04_C8_B0_29_C2_35.1")) -- Pixel earbuds
-hl.bind(mainMod .. " + CTRL + h", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
+hl.bind(mainMod .. " + CTRL + 1", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
+hl.bind(mainMod .. " + CTRL + 2", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo")) -- Razer headset
+hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo")) -- Razer headset
+hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.88_C9_E8_CA_86_B8.1")) -- Pixel earbuds
+hl.bind(mainMod .. " + CTRL + 5", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.04_C8_B0_29_C2_35.1")) -- Pixel earbuds
 
 -- Focus with vim keys
 hl.bind(mainMod .. " + h", hl.dsp.focus({ direction = "left"  }))
@@ -302,15 +303,23 @@ hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 -- Lock
 hl.bind(mainMod .. " + End", hl.dsp.exec_cmd("hyprlock"))
 
+-- Swap DP-8 / DP-7 (KVM sometimes swaps which port each monitor lands on)
+hl.bind(mainMod .. " + CTRL + M", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/swap-monitors"))
+
 -- Mouse move/resize
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 -- Audio
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),      { locked = true, repeating = true })
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/volume_change.sh 5 up"), { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/volume_change.sh 5 down"), { locked = true, repeating = true })
 hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     { locked = true, repeating = true })
 hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   { locked = true, repeating = true })
+
+hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
+hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("playerctl next"),       { locked = true })
+hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = true })
+hl.bind("XF86AudioStop",  hl.dsp.exec_cmd("playerctl stop"),       { locked = true })
 
 -- Screen brightness
 hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -e set +5%"), { locked = true, repeating = true })

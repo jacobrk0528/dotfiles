@@ -237,11 +237,32 @@ intelephense = {
     "nvimtools/none-ls.nvim",
     config = function()
       local null_ls = require("null-ls")
+      local h = require("null-ls.helpers")
+
+      -- Dataform .sqlx files start with a non-SQL `config { ... }` block and
+      -- can embed `${ref("...")}` interpolations, both of which SQLFluff's
+      -- parser chokes on. This wrapper strips them before formatting and
+      -- re-inlines them afterward (see the script for details).
+      local sqlfluff_dataform = h.make_builtin({
+        name = "sqlfluff-dataform",
+        meta = { description = "Dataform-aware SQLFluff wrapper" },
+        method = require("null-ls.methods").internal.FORMATTING,
+        filetypes = { "sql" },
+        generator_opts = {
+          command = vim.fn.expand("~/.local/share/sqlfluff-venv/bin/python3"),
+          args = { vim.fn.expand("~/dotfiles/sqlfluff-plugin/bin/format_dataform_sqlx.py") },
+          from_stdin = true,
+          to_stdin = true,
+        },
+        factory = h.formatter_factory,
+      })
+
       null_ls.setup({
         sources = {
           null_ls.builtins.formatting.stylua,
           null_ls.builtins.formatting.prettierd,
           null_ls.builtins.formatting.gofmt,
+          sqlfluff_dataform,
           null_ls.builtins.diagnostics.trail_space,
         },
       })

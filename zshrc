@@ -53,3 +53,5 @@ export PATH="$HOME/.local/bin:$PATH"
 source <(fzf --zsh)
 export PATH="$PATH:$HOME/.config/composer/vendor/bin"
 export REPORTTIME=30
+
+export PATH="$PATH:$HOME/dotfiles/hypr/scripts"

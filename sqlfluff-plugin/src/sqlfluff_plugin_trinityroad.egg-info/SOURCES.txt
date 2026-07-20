@@ -1,0 +1,9 @@
+pyproject.toml
+src/sqlfluff_plugin_trinityroad/__init__.py
+src/sqlfluff_plugin_trinityroad/rules.py
+src/sqlfluff_plugin_trinityroad.egg-info/PKG-INFO
+src/sqlfluff_plugin_trinityroad.egg-info/SOURCES.txt
+src/sqlfluff_plugin_trinityroad.egg-info/dependency_links.txt
+src/sqlfluff_plugin_trinityroad.egg-info/entry_points.txt
+src/sqlfluff_plugin_trinityroad.egg-info/requires.txt
+src/sqlfluff_plugin_trinityroad.egg-info/top_level.txt

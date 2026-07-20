@@ -1,0 +1,11 @@
+#!/bin/bash
+
+CONFIG="/home/jkrebs/dotfiles/hypr/hyprland.lua"
+
+sed -i \
+    -e 's/DP-7/__DP_TMP__/g' \
+    -e 's/DP-8/DP-7/g' \
+    -e 's/__DP_TMP__/DP-8/g' \
+    "$CONFIG"
+
+hyprctl reload

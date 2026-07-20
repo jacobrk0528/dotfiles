@@ -36,12 +36,13 @@ vim.keymap.set("n", "<leader>f", function()
 	if vim.bo.filetype == "blade" then
 		vim.lsp.buf.format({
 			async = false,
+			timeout_ms = 10000,
 			filter = function(client)
 				return client.name == "null-ls"
 			end,
 		})
 	else
-		vim.lsp.buf.format({ async = false }) -- whatever other LSPs you have
+		vim.lsp.buf.format({ async = false, timeout_ms = 10000 }) -- whatever other LSPs you have
 	end
 end, { desc = "Format buffer (LSP/null-ls for Blade)" })
 

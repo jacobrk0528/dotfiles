@@ -106,4 +106,10 @@ fi
 echo "🖋️ Updating font cache..."
 fc-cache -fv
 
+# 12. Default theme state file (needed by nvim's theme sync)
+if [ ! -f "$HOME/.terminal_theme" ]; then
+    echo "🎨 Setting default terminal theme to dark..."
+    echo 'export TERMINAL_THEME=dark' > "$HOME/.terminal_theme"
+fi
+
 echo "✅ Arch Linux setup logic complete!"
