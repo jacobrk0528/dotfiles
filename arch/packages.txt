@@ -13,6 +13,9 @@ cliphist
 cloc
 cmake
 composer
+discord
+dolphin
+exfat-utils
 firefox
 freerdp
 freetds
@@ -20,6 +23,7 @@ fzf
 ghostty
 gimp
 git
+github-cli
 go
 google-chrome
 google-cloud-cli
@@ -33,6 +37,7 @@ hyprlock
 hyprpaper
 hyprshot
 jq
+kdeconnect
 kolourpaint
 less
 lib32-nvidia-utils
@@ -46,6 +51,7 @@ neovim
 networkmanager
 nmap
 nodejs
+nordvpn-bin
 noto-fonts-cjk
 npm
 nvidia-open
@@ -53,12 +59,14 @@ nvidia-utils
 obs-studio
 obsidian
 openbsd-netcat
+opencode-bin
 otf-font-awesome
 paru
 pavucontrol
 pgadmin4-desktop
 pgvector
 php
+php-gd
 php-odbc
 php-redis
 php-sqlite
@@ -69,6 +77,7 @@ pipewire-pulse
 postgresql
 postman-bin
 python
+python312
 reflector
 remmina
 ripgrep
@@ -76,6 +85,7 @@ rsync
 rtkit
 slack-desktop
 slurp
+sqlfluff
 tailscale
 thunar
 thunar-archive-plugin
@@ -87,6 +97,7 @@ tree
 tree-sitter
 tree-sitter-cli
 ttf-jetbrains-mono-nerd
+ttf-times-new-roman
 tumbler
 unixodbc
 unzip
@@ -106,6 +117,7 @@ xdg-desktop-portal-hyprland
 xrdp
 zen-browser-bin
 zip
+zoom
 zsh
 zsh-autosuggestions
 zsh-syntax-highlighting
