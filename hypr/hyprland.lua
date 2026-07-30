@@ -26,8 +26,8 @@ hl.env("LC_ALL",         "en_US.UTF-8")
 local hostname = io.popen("cat /etc/hostname"):read("*l")
 
 hl.monitor({ output = "desc:Acer Technologies XB273 GX 0x15205CF0", mode = "1920x1080@60", position = "0x0", scale = 1 })		-- Middle
-hl.monitor({ output = "DP-8", mode = "1920x1080@60", position = "1920x0", scale = 1 })											-- Right
-hl.monitor({ output = "DP-7", mode = "1920x1080@60", position = "-1920x0", scale = 1 })											-- Left
+hl.monitor({ output = "DP-7", mode = "1920x1080@60", position = "1920x0", scale = 1 })											-- Right
+hl.monitor({ output = "DP-8", mode = "1920x1080@60", position = "-1920x0", scale = 1 })											-- Left
 hl.monitor({ output = "desc:Acer Technologies PM161Q C 25230110E4HA1", mode = "1920x1080@60", position = "0x1080", scale = 1 }) -- Bottom
 
 -----------------------
@@ -35,7 +35,7 @@ hl.monitor({ output = "desc:Acer Technologies PM161Q C 25230110E4HA1", mode = "1
 -----------------------
 
 local terminal    = "ghostty"
-local fileManager = "thunar"
+local fileManager = "dolphin"
 local menu        = "wofi --show drun --style ~/.config/wofi/style.css"
 local browser     = "google-chrome-stable"
 local slack       = "slack"
@@ -137,7 +137,7 @@ hl.config({
         kb_rules   = "",
 
         follow_mouse = 1,
-        sensitivity  = -0.5,
+        sensitivity  = -0.8,
 
         touchpad = {
             natural_scroll = false,
@@ -207,16 +207,16 @@ hl.window_rule({ match = { title = "narsil_log"   }, workspace = "special:logs" 
 local workspace_configs = {
     terra = {
 		-- Left
-        { workspace = "1",  monitor = "DP-7" },
-        { workspace = "4",  monitor = "DP-7" },
+        { workspace = "1",  monitor = "DP-8" },
+        { workspace = "4",  monitor = "DP-8" },
 
 		-- Middle
         { workspace = "2",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
         { workspace = "5",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
 
 		-- Right
-        { workspace = "3",  monitor = "DP-8" },
-        { workspace = "6",  monitor = "DP-8" },
+        { workspace = "3",  monitor = "DP-7" },
+        { workspace = "6",  monitor = "DP-7" },
 
 		-- Bottom
         { workspace = "7",  monitor = "desc:Acer Technologies PM161Q C 25230110E4HA1" },
@@ -263,10 +263,10 @@ hl.bind(mainMod .. " + CTRL + Q", hl.dsp.exit())
 
 -- Audio keybinds
 hl.bind(mainMod .. " + CTRL + 1", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
-hl.bind(mainMod .. " + CTRL + 2", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo")) -- Razer headset
-hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo")) -- Razer headset
-hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.88_C9_E8_CA_86_B8.1")) -- Pixel earbuds
-hl.bind(mainMod .. " + CTRL + 5", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.04_C8_B0_29_C2_35.1")) -- Pixel earbuds
+hl.bind(mainMod .. " + CTRL + 2", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo"))
+hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo")) -- Pebble
+hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.04_C8_B0_2F_27_CD.1")) -- Pixel earbuds
+
 
 -- Focus with vim keys
 hl.bind(mainMod .. " + h", hl.dsp.focus({ direction = "left"  }))
@@ -303,7 +303,7 @@ hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 -- Lock
 hl.bind(mainMod .. " + End", hl.dsp.exec_cmd("hyprlock"))
 
--- Swap DP-8 / DP-7 (KVM sometimes swaps which port each monitor lands on)
+-- Swap DP-7 / DP-8 (KVM sometimes swaps which port each monitor lands on)
 hl.bind(mainMod .. " + CTRL + M", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/swap-monitors"))
 
 -- Mouse move/resize

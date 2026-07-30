@@ -9,3 +9,17 @@ sed -i \
     "$CONFIG"
 
 hyprctl reload
+
+# Reloading only fixes the config's port->position mapping. Workspaces that
+# already exist stay pinned to whichever monitor they were last on, so
+# Super+1/4 and Super+3/6 keep targeting the wrong physical screen until we
+# explicitly re-home them here.
+left_mon=$(hyprctl monitors -j  | jq -r '.[] | select(.x == -1920) | .name')
+right_mon=$(hyprctl monitors -j | jq -r '.[] | select(.x == 1920)  | .name')
+
+for ws in 1 4; do
+    hyprctl dispatch "hl.dsp.workspace.move({ workspace = $ws, monitor = \"$left_mon\" })"
+done
+for ws in 3 6; do
+    hyprctl dispatch "hl.dsp.workspace.move({ workspace = $ws, monitor = \"$right_mon\" })"
+done

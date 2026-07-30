@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-DIR="/home/jkrebs/Documents/TrinityRoad/local-git/narsil"
-NAME="narsil"
+DIR="/home/jkrebs/Documents/TrinityRoad/local-git/narsil-main"
+NAME="narsil-main"
 SOURCE="source venv/bin/activate"
 
 cd $DIR
@@ -21,7 +21,7 @@ tmux send-keys -t $NAME:2 "cd $DIR && $SOURCE && clear" C-m
 
 tmux new-window -t $NAME:3
 tmux send-keys -t $NAME:3 "cd $DIR && clear && ssh dagobah" C-m
-tmux send-keys -t $NAME:3 "cd /www/staging/narsil && clear" C-m
+tmux send-keys -t $NAME:3 "cd /www/services/narsil && clear" C-m
 
 tmux select-window -t $NAME:1
 tmux attach -t $NAME
