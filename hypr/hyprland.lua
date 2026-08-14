@@ -48,7 +48,7 @@ local btop        = "ghostty --title=btop -e bash -c 'btop'"
 
 -- See https://wiki.hypr.land/Configuring/Basics/Autostart/
 hl.on("hyprland.start", function()
-    hl.exec_cmd("waybar")
+    hl.exec_cmd("/home/jkrebs/dotfiles/waybar/scripts/launch_waybar.sh")
     hl.exec_cmd("hyprpaper")
     hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/launch_logs.sh")
     hl.exec_cmd(slack,                { workspace = "special:slack" })
@@ -263,9 +263,9 @@ hl.bind(mainMod .. " + CTRL + Q", hl.dsp.exit())
 
 -- Audio keybinds
 hl.bind(mainMod .. " + CTRL + 1", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
-hl.bind(mainMod .. " + CTRL + 2", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo"))
-hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo")) -- Pebble
-hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.04_C8_B0_2F_27_CD.1")) -- Pixel earbuds
+hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo"))
+hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo")) -- Pebble
+hl.bind(mainMod .. " + CTRL + 5", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.04_C8_B0_2F_27_CD.1")) -- Pixel earbuds
 
 
 -- Focus with vim keys

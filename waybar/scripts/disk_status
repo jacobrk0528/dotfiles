@@ -1,0 +1,81 @@
+#!/bin/bash
+
+STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}"
+STATE_FILE="${STATE_DIR}/waybar_disk_status.state"
+
+now=$(date +%s.%N)
+
+# Root partition info
+df_info=$(df -h / | awk 'NR==2 {print $2, $3, $4, $5}')
+read -r size_h used_h avail_h pct_str <<< "$df_info"
+pct_num=$(echo "$pct_str" | tr -d '%')
+
+# Color code disk usage %
+if [ "$pct_num" -lt 75 ] 2>/dev/null; then
+  pct_color="<span color=\"#50fa7b\">${pct_str}</span>"
+elif [ "$pct_num" -lt 90 ] 2>/dev/null; then
+  pct_color="<span color=\"#f1fa8c\">${pct_str} (Warning)</span>"
+else
+  pct_color="<span color=\"#ff5555\">${pct_str} (FULL)</span>"
+fi
+
+# NVMe Temps
+nvme_temps=""
+for h in /sys/class/hwmon/hwmon*; do
+  if [ "$(cat "$h/name" 2>/dev/null)" = "nvme" ]; then
+    device=$(readlink -f "$h/device" | awk -F'/' '{print $NF}')
+    temp_raw=$(cat "$h/temp1_input" 2>/dev/null || echo 0)
+    temp_c=$(awk "BEGIN {printf \"%.1f\", $temp_raw/1000}")
+    temp_int=${temp_c%.*}
+
+    if [ "$temp_int" -lt 60 ] 2>/dev/null; then
+      temp_formatted="<span color=\"#50fa7b\">${temp_c}°C</span>"
+    elif [ "$temp_int" -lt 70 ] 2>/dev/null; then
+      temp_formatted="<span color=\"#f1fa8c\">${temp_c}°C (Warm)</span>"
+    else
+      temp_formatted="<span color=\"#ff5555\">${temp_c}°C (HOT)</span>"
+    fi
+
+    nvme_temps="${nvme_temps}\n  ${device}: ${temp_formatted}"
+  fi
+done
+
+# Disk I/O Activity from /sys/block/nvme0n1/stat
+read_sectors=$(awk '{print $3}' /sys/block/nvme0n1/stat 2>/dev/null || echo 0)
+write_sectors=$(awk '{print $7}' /sys/block/nvme0n1/stat 2>/dev/null || echo 0)
+
+if [ -f "$STATE_FILE" ]; then
+  read -r prev_now prev_r prev_w < "$STATE_FILE" 2>/dev/null
+fi
+
+if [ -n "$prev_now" ]; then
+  eval "$(awk -v now="$now" -v prev_now="$prev_now" \
+             -v r="$read_sectors" -v prev_r="${prev_r:-0}" \
+             -v w="$write_sectors" -v prev_w="${prev_w:-0}" '
+    BEGIN {
+      dt = now - prev_now;
+      if (dt <= 0.1) dt = 1;
+      # 1 sector = 512 bytes
+      r_mb = ((r - prev_r) * 512) / (1048576 * dt);
+      w_mb = ((w - prev_w) * 512) / (1048576 * dt);
+      if (r_mb < 0) r_mb = 0;
+      if (w_mb < 0) w_mb = 0;
+      printf("r_speed=\"%.2f\"\n", r_mb);
+      printf("w_speed=\"%.2f\"\n", w_mb);
+    }
+  ')"
+else
+  r_speed="0.00"
+  w_speed="0.00"
+fi
+
+echo "$now $read_sectors $write_sectors" > "$STATE_FILE"
+
+storage_sec=$(printf "Storage (/):\n  Used:  %s / %s (%b)\n  Free:  %s" "$used_h" "$size_h" "$pct_color" "$avail_h")
+nvme_sec=$(printf "NVMe Temperatures:%b" "$nvme_temps")
+io_sec=$(printf "I/O Activity:\n  Read:  %s MB/s\n  Write: %s MB/s" "$r_speed" "$w_speed")
+
+tooltip=$(printf "%s\n\n%b\n\n%s" "$storage_sec" "$nvme_sec" "$io_sec")
+text="${pct_str}"
+
+jq -c -n --arg text "$text" --arg tooltip "$tooltip" '{text: $text, tooltip: $tooltip}'

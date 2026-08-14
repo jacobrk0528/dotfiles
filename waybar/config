@@ -6,43 +6,86 @@
   "margin-left": 12,
   "margin-right": 12,
 
-  "modules-left": ["hyprland/workspaces", "window"],
+  "modules-left": ["hyprland/workspaces", "hyprland/window"],
   "modules-center": ["clock"],
-  "modules-right": ["custom/ai_sessions", "custom/stats", "pulseaudio", "battery"],
+  "modules-right": ["custom/mpris", "cpu", "custom/memory", "custom/cpu_temp", "custom/gpu", "custom/disk", "custom/network", "pulseaudio", "tray"],
 
   "clock": {
     "interval": 1,
     "format": "{:%a %b %d  %H:%M:%S}",
-    "tooltip-format": "{:%A, %B %d %Y  %H:%M:%S}"
-  },
-
-  "window": {
-    "max-length": 60,
-    "separate-outputs": true
+    "tooltip-format": "<tt>{calendar}</tt>",
+    "calendar": {
+      "mode": "month",
+      "mode-mon-col": 3,
+      "format": {
+        "months": "<span color='#ff79c6'><b>{}</b></span>",
+        "days": "<span color='#50fa7b'><b>{}</b></span>",
+        "weeks": "<span color='#8be9fd'><b>W{}</b></span>",
+        "weekdays": "<span color='#ffb86c'><b>{}</b></span>",
+        "today": "<span color='#ff5555'><b><u>{}</u></b></span>"
+      }
+    }
   },
 
   "hyprland/workspaces": {
     "all-outputs": true,
     "format": "{name}",
-    "on-click": "activate",
     "on-scroll-up": "hyprctl dispatch workspace +1",
     "on-scroll-down": "hyprctl dispatch workspace -1",
     "disable-scroll": false
   },
 
-  "custom/stats": {
-    "format": "sys",
-    "exec": "/home/jkrebs/.config/waybar/scripts/stats",
+  "hyprland/window": {
+    "format": "{}",
+    "max-length": 35,
+    "separate-outputs": true
+  },
+
+  "custom/mpris": {
+    "format": "{}",
+    "exec": "/home/jkrebs/dotfiles/waybar/scripts/mpris_status",
+    "return-type": "json",
+    "interval": 2,
+    "on-click": "playerctl play-pause",
+    "on-scroll-up": "playerctl next",
+    "on-scroll-down": "playerctl previous"
+  },
+
+  "cpu": {
+    "format": " {usage}%",
+    "interval": 2,
+    "tooltip": true
+  },
+
+  "custom/cpu_temp": {
+    "format": " {}",
+    "exec": "/home/jkrebs/dotfiles/waybar/scripts/cpu_temp",
     "return-type": "json",
     "interval": 5,
     "tooltip": true
   },
 
-  "custom/ai_sessions": {
-    "format": "{}",
-    "exec": "/home/jkrebs/dotfiles/waybar/scripts/ai_status",
+  "custom/gpu": {
+    "format": "󰢮 {}",
+    "exec": "/home/jkrebs/dotfiles/waybar/scripts/gpu_temp",
     "return-type": "json",
-    "interval": 2,
+    "interval": 5,
+    "tooltip": true
+  },
+
+  "custom/disk": {
+    "format": "󰋊 {}",
+    "exec": "/home/jkrebs/dotfiles/waybar/scripts/disk_status",
+    "return-type": "json",
+    "interval": 10,
+    "tooltip": true
+  },
+
+  "custom/network": {
+    "format": "  {}",
+    "exec": "/home/jkrebs/dotfiles/waybar/scripts/network_status",
+    "return-type": "json",
+    "interval": 5,
     "tooltip": true
   },
 
@@ -51,18 +94,21 @@
     "format-muted": "󰖁 muted",
     "format-icons": ["󰕿", "󰖀", "󰕾"],
     "scroll-step": 5,
-    "on-click": "pavucontrol",
+    "on-click": "/home/jkrebs/dotfiles/waybar/scripts/audio_mixer_menu",
     "on-click-right": "$HOME/.config/waybar/scripts/cycle_sink",
     "tooltip-format": "{desc}"
   },
 
-  "battery": {
-    "states": { "warning": 25, "critical": 10 },
-    "format": "{icon} {capacity}%",
-    "format-charging": "chg {capacity}%",
-    "format-plugged": "{capacity}%",
-    "format-alt": "{time}",
-    "format-icons": ["▁", "▂", "▄", "▆", "█"],
-    "hide-if-unavailable": true
+  "custom/memory": {
+    "format": "󰍛 {}",
+    "exec": "/home/jkrebs/dotfiles/waybar/scripts/mem_status.sh",
+    "return-type": "json",
+    "interval": 5,
+    "tooltip": true
+  },
+
+  "tray": {
+    "icon-size": 16,
+    "spacing": 10
   }
 }

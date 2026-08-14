@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Dynamic hwmon lookup for CPU temperature (k10temp or coretemp)
+k10_dir=""
+for h in /sys/class/hwmon/hwmon*; do
+  name=$(cat "$h/name" 2>/dev/null)
+  if [ "$name" = "k10temp" ] || [ "$name" = "coretemp" ]; then
+    k10_dir="$h"
+    break
+  fi
+done
+
+tctl_val="0"
+tccd1_val=""
+tccd2_val=""
+
+if [ -n "$k10_dir" ]; then
+  for f in "$k10_dir"/temp*_input; do
+    lbl=$(cat "${f%_input}_label" 2>/dev/null)
+    raw=$(cat "$f" 2>/dev/null || echo 0)
+    c_val=$(awk "BEGIN {printf \"%.1f\", $raw/1000}")
+
+    case "$lbl" in
+      Tctl|Package*) tctl_val="$c_val" ;;
+      Tccd1) tccd1_val="$c_val" ;;
+      Tccd2) tccd2_val="$c_val" ;;
+    esac
+  done
+fi
+
+# Fallback if hwmon lookup failed
+if [ "$tctl_val" = "0" ] || [ -z "$tctl_val" ]; then
+  raw=$(cat /sys/class/hwmon/hwmon1/temp1_input 2>/dev/null || echo 0)
+  tctl_val=$(awk "BEGIN {printf \"%.1f\", $raw/1000}")
+fi
+
+tctl_int=${tctl_val%.*}
+if [ -z "$tctl_int" ]; then tctl_int=0; fi
+
+# Color coding for CPU temp
+if [ "$tctl_int" -lt 70 ] 2>/dev/null; then
+  temp_color="<span color=\"#50fa7b\">${tctl_val}°C</span>"
+elif [ "$tctl_int" -lt 85 ] 2>/dev/null; then
+  temp_color="<span color=\"#f1fa8c\">${tctl_val}°C (Warm)</span>"
+else
+  temp_color="<span color=\"#ff5555\">${tctl_val}°C (HOT)</span>"
+fi
+
+# System Load Averages
+read -r l1 l5 l15 _ < /proc/loadavg
+
+# CCD Temps formatting
+ccd_str=""
+if [ -n "$tccd1_val" ]; then
+  ccd_str="\n  CCD1 (3D Cache): ${tccd1_val}°C"
+fi
+if [ -n "$tccd2_val" ]; then
+  ccd_str="${ccd_str}\n  CCD2:            ${tccd2_val}°C"
+fi
+
+# Top 3 CPU Consuming Processes
+top_proc=$(ps -eo comm,%cpu --sort=-%cpu | awk 'NR>1 && $1!="ps" && $1!="awk" && $1!="top" {printf "  %-16s %5.1f%%\n", $1, $2}' | head -n 3)
+
+cpu_model=$(grep "model name" /proc/cpuinfo | head -n 1 | awk -F': ' '{print $2}')
+[ -z "$cpu_model" ] && cpu_model="AMD Ryzen 9 9950X3D"
+
+header="${cpu_model}"
+temps_section=$(printf "Temperatures:\n  Package (Tctl): %b%b" "$temp_color" "$ccd_str")
+load_section=$(printf "System Load:\n  Load Avg:  %s, %s, %s" "$l1" "$l5" "$l15")
+proc_section=$(printf "Top CPU Processes:\n%s" "$top_proc")
+
+tooltip=$(printf "%s\n\n%b\n\n%s\n\n%s" "$header" "$temps_section" "$load_section" "$proc_section")
+text="$(awk "BEGIN {printf \"%.0f\", $tctl_val}")°C"
+
+jq -c -n --arg text "$text" --arg tooltip "$tooltip" '{text: $text, tooltip: $tooltip}'

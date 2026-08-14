@@ -1,0 +1,68 @@
+#!/bin/bash
+
+gpu_info=$(nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw,power.limit,fan.speed --format=csv,noheader,nounits 2>/dev/null | head -n1)
+
+if [ -z "$gpu_info" ]; then
+  text="—"
+  tooltip="GPU: Unavailable"
+else
+  IFS=',' read -r gpu_name gpu_temp gpu_util vram_used vram_total pwr_draw pwr_limit fan_speed <<< "$gpu_info"
+
+  # Trim whitespace
+  gpu_name=$(echo "$gpu_name" | xargs)
+  gpu_temp=$(echo "$gpu_temp" | xargs)
+  gpu_util=$(echo "$gpu_util" | xargs)
+  vram_used=$(echo "$vram_used" | xargs)
+  vram_total=$(echo "$vram_total" | xargs)
+  pwr_draw=$(echo "$pwr_draw" | xargs)
+  pwr_limit=$(echo "$pwr_limit" | xargs)
+  fan_speed=$(echo "$fan_speed" | xargs)
+
+  # Color code temperature
+  if [ "$gpu_temp" -lt 65 ] 2>/dev/null; then
+    temp_str="<span color=\"#50fa7b\">${gpu_temp}°C</span>"
+  elif [ "$gpu_temp" -lt 80 ] 2>/dev/null; then
+    temp_str="<span color=\"#f1fa8c\">${gpu_temp}°C (Warm)</span>"
+  else
+    temp_str="<span color=\"#ff5555\">${gpu_temp}°C (HOT)</span>"
+  fi
+
+  # Fan speed string
+  if [ "$fan_speed" -eq 0 ] 2>/dev/null; then
+    fan_str="0% (Silent)"
+  else
+    fan_str="${fan_speed}%"
+  fi
+
+  # VRAM GB calculations
+  vram_used_gb=$(awk "BEGIN {printf \"%.2f\", $vram_used / 1024}")
+  vram_total_gb=$(awk "BEGIN {printf \"%.2f\", $vram_total / 1024}")
+  vram_pct=$(awk "BEGIN {printf \"%.1f\", ($vram_used / $vram_total) * 100}")
+
+  # Power calculations
+  pwr_draw_f=$(awk "BEGIN {printf \"%.1f\", $pwr_draw}")
+  pwr_limit_f=$(awk "BEGIN {printf \"%.1f\", $pwr_limit}")
+
+  # Top GPU processes
+  gpu_procs=$(nvidia-smi --query-compute-apps=process_name,used_memory --format=csv,noheader,nounits 2>/dev/null | awk -F',' '{
+    gsub(/^[ \t]+|[ \t]+$/, "", $1);
+    gsub(/^[ \t]+|[ \t]+$/, "", $2);
+    split($1, a, " ");
+    n = split(a[1], b, "/");
+    name = b[n];
+    printf "  %-16s %6s MiB\n", name, $2
+  }' | head -n 3)
+
+  if [ -z "$gpu_procs" ]; then
+    gpu_procs="  None"
+  fi
+
+  stats_sec=$(printf "Stats:\n  Utilization: %s%%\n  Temperature: %b\n  Fan Speed:   %s\n  Power Draw:  %s W / %s W" "$gpu_util" "$temp_str" "$fan_str" "$pwr_draw_f" "$pwr_limit_f")
+  vram_sec=$(printf "VRAM Usage:\n  %s GB / %s GB (%s%%)" "$vram_used_gb" "$vram_total_gb" "$vram_pct")
+  proc_sec=$(printf "Top GPU Processes:\n%s" "$gpu_procs")
+
+  tooltip=$(printf "%s\n\n%b\n\n%s\n\n%s" "$gpu_name" "$stats_sec" "$vram_sec" "$proc_sec")
+  text="${gpu_temp}°C"
+fi
+
+jq -c -n --arg text "$text" --arg tooltip "$tooltip" '{text: $text, tooltip: $tooltip}'

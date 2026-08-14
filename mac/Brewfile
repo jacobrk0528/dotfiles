@@ -1,9 +1,7 @@
 # --- Taps ---
-tap "homebrew/bundle"
 tap "microsoft/mssql-release"
 
 # --- CLI Tools ---
-brew "android-platform-tools"
 brew "bind"
 brew "biome"
 brew "btop"
@@ -23,7 +21,6 @@ brew "mariadb"
 brew "neovim"
 brew "nmap"
 brew "node"
-brew "openbsd-netcat"
 brew "pgvector"
 brew "php"
 brew "postgresql@17"
@@ -49,23 +46,23 @@ brew "mssql-tools18"
 # PHP extensions (install via pecl after: pecl install redis)
 
 # --- Applications ---
+cask "android-platform-tools"
 cask "android-studio"
 cask "chromium"
 cask "firefox"
 cask "ghostty"
 cask "gimp"
 cask "google-chrome"
-cask "google-cloud-sdk"
+cask "gcloud-cli"
 cask "obs"
 cask "obsidian"
 cask "pgadmin4"
 cask "postman"
 cask "slack"
-cask "tailscale"
 cask "tradingview"
-cask "zen-browser"
+cask "zen"
 
 # --- Fonts ---
 cask "font-jetbrains-mono-nerd-font"
-cask "font-font-awesome"
+cask "font-fontawesome"
 cask "font-noto-sans-cjk"

@@ -20,6 +20,14 @@ if [[ "$(uname)" == "Darwin" ]]; then
     alias cpwd='print -nr -- $PWD | pbcopy'
 else
     alias cpwd='print -nr -- $PWD | wl-copy'
+	copy() {
+		if [ $# -eq 0 ]; then
+			echo "Filename required"
+		else
+			cat "$1" | wl-copy
+		fi
+		return 0
+	}
 fi
 
 # computer power options
@@ -72,6 +80,16 @@ push() {
       git add .
       git commit -m "$1"
       git push
+    fi
+}
+
+commit() {
+    if [ $# -eq 0 ]; then
+      echo "Commit Message required"
+      return
+    else
+      git add .
+      git commit -m "$1"
     fi
 }
 

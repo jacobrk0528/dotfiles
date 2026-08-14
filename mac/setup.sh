@@ -26,7 +26,21 @@ fi
 
 # 3. Install packages from Brewfile
 echo "📦 Installing packages from Brewfile..."
+# HOMEBREW_ACCEPT_EULA (not ACCEPT_EULA) is what msodbcsql18/mssql-tools18
+# actually check; without it their formulas block on a raw STDIN.gets prompt
+# that brew bundle's output buffering can make look hung.
+export HOMEBREW_ACCEPT_EULA=Y
 brew bundle --file="$DOTFILES_DIR/mac/Brewfile"
+
+# Tailscale is often installed manually outside Homebrew (e.g. Mac App Store,
+# direct pkg); installing the cask on top of that triggers a conflict dialog.
+# Only install it if it's not already present.
+if [ ! -d "/Applications/Tailscale.app" ]; then
+    echo "📡 Installing Tailscale..."
+    brew install --cask tailscale-app
+else
+    echo "📡 Tailscale already installed, skipping."
+fi
 
 # 4. Enable Services
 echo "⚙️  Starting services..."

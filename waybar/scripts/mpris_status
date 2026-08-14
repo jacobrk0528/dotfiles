@@ -1,0 +1,77 @@
+#!/bin/bash
+
+ytm_source=""
+twitch_source=""
+yt_source=""
+other_sources=()
+
+# Scan Hyprland windows for media sources
+while read -r title; do
+  [ -z "$title" ] && continue
+
+  if [[ "$title" =~ ^YouTube\ Music\ -\ (.*)\ \|\ YouTube\ Music$ ]]; then
+    song="${BASH_REMATCH[1]}"
+    ytm_source="YouTube Music: ${song}"
+
+  elif [[ "$title" =~ Twitch ]]; then
+    clean=$(echo "$title" | sed -E 's/^\([0-9]+\) //; s/ - Twitch.*//; s/ - Google Chrome.*//')
+    twitch_source="Twitch: ${clean}"
+
+  elif [[ "$title" =~ YouTube ]] && [[ "$title" != *"YouTube Music"* ]]; then
+    clean=$(echo "$title" | sed -E 's/^\([0-9]+\) //; s/ - YouTube.*//; s/ - Google Chrome.*//')
+    yt_source="YouTube: ${clean}"
+  fi
+done < <(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.title != null) | .title')
+
+# Check MPRIS for other media players (e.g. Spotify, MPV, VLC, Firefox)
+while IFS=$'\t' read -r player status title artist; do
+  [ -z "$title" ] && continue
+  if [[ "$player" != *"chromium"* ]] && [ "$status" = "Playing" ]; then
+    if [ -n "$artist" ]; then
+      other_sources+=("${player}: ${title} - ${artist}")
+    else
+      other_sources+=("${player}: ${title}")
+    fi
+  fi
+done < <(playerctl -a metadata --format '{{playerName}}	{{status}}	{{title}}	{{artist}}' 2>/dev/null)
+
+# Build Bar Text (Prioritize YouTube Music)
+bar_text=""
+if [ -n "$ytm_source" ]; then
+  raw_song="${ytm_source#YouTube Music: }"
+  if [ ${#raw_song} -gt 32 ]; then
+    bar_text="󰎈 ${raw_song:0:29}..."
+  else
+    bar_text="󰎈 ${raw_song}"
+  fi
+elif [ -n "$twitch_source" ]; then
+  raw_stream="${twitch_source#Twitch: }"
+  bar_text="󰕧 ${raw_stream}"
+elif [ -n "$yt_source" ]; then
+  raw_yt="${yt_source#YouTube: }"
+  bar_text="󰗃 ${raw_yt}"
+elif [ ${#other_sources[@]} -gt 0 ]; then
+  bar_text="󰎈 ${other_sources[0]}"
+fi
+
+# Build Tooltip listing ALL active audio sources
+tooltip_lines=()
+[ -n "$ytm_source" ] && tooltip_lines+=("  • ${ytm_source}")
+[ -n "$twitch_source" ] && tooltip_lines+=("  • ${twitch_source}")
+[ -n "$yt_source" ] && tooltip_lines+=("  • ${yt_source}")
+
+for s in "${other_sources[@]}"; do
+  tooltip_lines+=("  • ${s}")
+done
+
+if [ ${#tooltip_lines[@]} -gt 0 ]; then
+  tooltip_body=$(printf "%s\n" "${tooltip_lines[@]}")
+  tooltip=$(printf "Active Audio Sources:\n%s" "$tooltip_body")
+  class="playing"
+else
+  bar_text=""
+  tooltip=""
+  class="stopped"
+fi
+
+jq -c -n --arg text "$bar_text" --arg tooltip "$tooltip" --arg class "$class" '{text: $text, tooltip: $tooltip, class: $class}'
