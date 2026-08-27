@@ -1,5 +1,10 @@
 export ZSH="$HOME/.oh-my-zsh"
 
+# Keep $PATH free of duplicates. Every PATH export below appends
+# unconditionally, and `reload` re-sources this file into the same process,
+# so without this the same entries stack up on every reload.
+typeset -U path PATH
+
 ZSH_THEME="jkrebs"
 HYPHEN_INSENSITIVE="true"
 COMPLETION_WAITING_DOTS="true"

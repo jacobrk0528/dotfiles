@@ -31,7 +31,10 @@ else
 fi
 
 # computer power options
-alias shutdown='shutdown now'
+# NB: deliberately not aliased to `shutdown` -- shadowing the real command
+# with a no-confirm immediate variant means typing `shutdown` to read its
+# usage powers the machine off instead.
+alias byebye='systemctl poweroff'
 
 # history
 alias h='history'
@@ -72,6 +75,20 @@ tks() {
 
 alias ta="~/.tmux/load_or_create.sh"
 
+# Recreate every autostart session from ~/.tmux/sessions.list, detached, exactly
+# as login does. Safe to run any time: sessions that already exist are skipped.
+alias start-tmux-sessions="~/dotfiles/scripts/start_tmux_sessions.sh"
+
+# yazi, leaving the shell in whatever directory you navigated to on quit
+y() {
+	local tmp cwd
+	tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
+	command yazi "$@" --cwd-file="$tmp"
+	IFS= read -r -d '' cwd < "$tmp"
+	[ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd" || builtin true
+	command rm -f -- "$tmp"
+}
+
 push() {
     if [ $# -eq 0 ]; then
       echo "Commit Message required"
@@ -103,6 +120,24 @@ gitcheck() {
 ' \;
 }
 
+pr() {
+    if [ $# -eq 0 ]; then
+      echo "Title required"
+      return
+    else
+      local body_file
+      body_file=$(mktemp)
+      nvim "$body_file"
+      if [ ! -s "$body_file" ]; then
+        echo "Empty body, aborting"
+        rm -f "$body_file"
+        return
+      fi
+      gh pr create --base main --head staging --title "$1" --body "$(cat "$body_file")"
+      rm -f "$body_file"
+    fi
+}
+
 #alias nvim="/home/jacob/.bash_scripts/nvim.sh"
 
 create-shell() {
@@ -129,7 +164,7 @@ EOF
     nvim shell.nix
 }
 
-alias netsuite='python3 /home/jkrebs/dotfiles/scripts/ns_export/main.py'
+alias netsuite='/home/jkrebs/dotfiles/scripts/ns_export/run.sh'
 alias netsuiteRaw='isql Netsuite $NS_USER "$NS_PASSWORD"'
 
 alias whichmodel='echo -e "\n\033[1;34mOpenCode Zen 2026 Model Guidance\033[0m"; \
