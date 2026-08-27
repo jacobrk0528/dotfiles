@@ -5,21 +5,23 @@ NAME="narsil"
 SOURCE="source venv/bin/activate"
 
 cd $DIR
-tmux new-session -d -s $NAME
+# new-session lands its window on the ambient base-index (1 here), so pin it to
+# the index this layout wants instead of assuming base-index 0.
+tmux new-session -d -s $NAME -n claude -c $DIR
+tmux move-window -d -s $NAME:^ -t $NAME:0 2>/dev/null
 
-tmux new-window -t $NAME:0
 tmux send-keys -t $NAME:0 "cd $DIR && $SOURCE && clear" C-m
 tmux send-keys -t $NAME:0 "claude" C-m
 
-tmux new-window -t $NAME:1
+tmux new-window -d -t $NAME:1 -n nvim -c $DIR
 tmux send-keys -t $NAME:1 "cd $DIR" C-m
 tmux send-keys -t $NAME:1 "$SOURCE && clear" C-m
 tmux send-keys -t $NAME:1 "nvim ." C-m
 
-tmux new-window -t $NAME:2
+tmux new-window -d -t $NAME:2 -n shell -c $DIR
 tmux send-keys -t $NAME:2 "cd $DIR && $SOURCE && clear" C-m
 
-tmux new-window -t $NAME:3
+tmux new-window -d -t $NAME:3 -n dagobah -c $DIR
 tmux send-keys -t $NAME:3 "cd $DIR && clear && ssh dagobah" C-m
 tmux send-keys -t $NAME:3 "cd /www/staging/narsil && clear" C-m
 

@@ -1,0 +1,28 @@
+# Single source of truth for predefined tmux sessions.
+#
+# Consumed by:
+#   scripts/start_tmux_sessions.sh   - what to create at login
+#   tmux/gen_session_binds.sh        - prefix <key> jump binds (sourced by tmux.conf)
+#   tmux/goto.sh                     - resolves a session to its builder script
+#
+# Columns (whitespace separated):
+#   key       prefix key that jumps to this session ('-' for none)
+#   session   the session name the builder actually creates (CASE SENSITIVE)
+#   builder   basename of ~/.tmux/<builder>.sh ('-' = plain empty session)
+#   autostart yes/no - created at login by start_tmux_sessions.sh
+#
+# Key policy: first letter of the session name, except where that letter is
+# already bound after the prefix (h = prev session, l = next session, f = fzf
+# picker, r = reload, H/J/K/L = pane nav, C-c = new session, Tab = last).
+# On collision fall through to the next distinctive letter of the name:
+#   t -> tom (first come), so trUtils takes 'u' (Utils) and narsil-main 'm'.
+#
+# key  session      builder      autostart
+c      celebrimbor  celebrimbor  yes
+t      tom          tom          yes
+u      trUtils      trutils      yes
+n      narsil       narsil       yes
+m      narsil-main  narsil-main  yes
+e      event        event        yes
+d      dotfiles     dotfiles     yes
+b      bcUtils      bcutils      no
