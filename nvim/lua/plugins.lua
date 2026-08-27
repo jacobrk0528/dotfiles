@@ -151,18 +151,28 @@ intelephense = {
         bashls = {},
       }
 
-      local installed = vim.tbl_keys(servers)
-      vim.list_extend(installed, { "stylua", "prettierd" })
+      -- Formatters used by none-ls. Kept out of mason-lspconfig's
+      -- ensure_installed, which only accepts lspconfig server names and warns
+      -- on every startup about anything else.
+      local tools = { "stylua", "prettierd" }
+
+      local registry = require("mason-registry")
+      registry.refresh(function()
+        for _, tool in ipairs(tools) do
+          local ok, pkg = pcall(registry.get_package, tool)
+          if ok and not pkg:is_installed() then
+            pkg:install()
+          end
+        end
+      end)
 
       require("mason-lspconfig").setup({
-        ensure_installed = installed,
+        ensure_installed = vim.tbl_keys(servers),
         handlers = {
           function(server_name)
             local invalid = {
               ["null-ls"] = true,
               ["jedi_language_server"] = true,
-              ["stylua"] = true,
-              ["prettierd"] = true,
             }
             if invalid[server_name] then return end
             local config = {

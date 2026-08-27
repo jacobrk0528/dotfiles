@@ -180,7 +180,6 @@ function RosePine_Theme()
     vim.api.nvim_set_hl(0, "BufferLineBackground", { bg = bg_deep })
     vim.api.nvim_set_hl(0, "BufferLineFill", { bg = bg_deep })
 
-    print("Custom Rosé Pine Dark theme applied with consistent dark backgrounds across all UI panels!")
 end
 
 return RosePine_Theme
