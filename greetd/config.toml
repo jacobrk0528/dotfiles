@@ -1,0 +1,14 @@
+#  Installed to /etc/greetd/config.toml by scripts/install-greeter.sh.
+#
+#  vt = 1 keeps the greeter on the same VT the TTY login used, so nothing
+#  about which console shows the login changes.
+
+[terminal]
+vt = 1
+
+[default_session]
+# Not Hyprland directly: greeter's home is `/`, which is not writable, and
+# both Hyprland and Qt want somewhere to cache. greeter-session points HOME
+# and the XDG dirs at /var/lib/greetd first.
+command = "/etc/greetd/greeter-session"
+user = "greeter"
