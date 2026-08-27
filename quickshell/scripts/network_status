@@ -1,0 +1,148 @@
+#!/bin/bash
+
+STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}"
+STATE_FILE="${STATE_DIR}/waybar_net_status.state"
+
+now=$(date +%s.%N)
+
+# Detect active Wi-Fi
+wifi_dev=$(nmcli -t -f DEVICE,TYPE,STATE dev | awk -F: '$2=="wifi" && $3 ~ /^connected/ {print $1}' | head -n1)
+
+if [ -n "$wifi_dev" ]; then
+  dev="$wifi_dev"
+  ssid=$(iw dev "$wifi_dev" link 2>/dev/null | awk -F': ' '/SSID:/ {print $2}')
+  signal_val=$(iw dev "$wifi_dev" link 2>/dev/null | awk '/signal:/ {print $2}')
+  rx_bitrate=$(iw dev "$wifi_dev" link 2>/dev/null | awk '/rx bitrate:/ {print $3" "$4}')
+  [ -z "$ssid" ] && ssid="Wi-Fi"
+  text="󰤨  ${ssid}"
+
+  # Format Signal Health
+  if [ -n "$signal_val" ]; then
+    if [ "$signal_val" -ge -65 ] 2>/dev/null; then
+      signal_str="<span color=\"#50fa7b\">${signal_val} dBm (Strong)</span>"
+    elif [ "$signal_val" -ge -75 ] 2>/dev/null; then
+      signal_str="<span color=\"#f1fa8c\">${signal_val} dBm (Fair)</span>"
+    else
+      signal_str="<span color=\"#ff5555\">${signal_val} dBm (Weak)</span>"
+    fi
+  else
+    signal_str="Unknown"
+  fi
+
+  link_cap="${rx_bitrate:-Unknown}"
+  net_header="Network: Wifi (${ssid})\nDevice:  ${wifi_dev}"
+
+else
+  eth_dev=$(nmcli -t -f DEVICE,TYPE,STATE dev | awk -F: '$2=="ethernet" && $3 ~ /^connected/ {print $1}' | head -n1)
+  if [ -n "$eth_dev" ]; then
+    dev="$eth_dev"
+    text="󰈀  Ethernet"
+    eth_speed=$(cat "/sys/class/net/${eth_dev}/speed" 2>/dev/null)
+    if [ -n "$eth_speed" ] && [ "$eth_speed" -gt 0 ] 2>/dev/null; then
+      link_cap="${eth_speed} Mbit/s"
+    else
+      link_cap="Connected"
+    fi
+    signal_str="N/A (Wired)"
+    net_header="Network: Ethernet\nDevice:  ${eth_dev}"
+  else
+    dev=""
+    text="󰤭  No net"
+    net_header="Network: Disconnected"
+  fi
+fi
+
+if [ -n "$dev" ]; then
+  # Check Latency (Ping)
+  ping_res=$(ping -c 1 -W 1 1.1.1.1 2>/dev/null)
+  if [ $? -eq 0 ]; then
+    ping_ms=$(echo "$ping_res" | awk -F'=' '/rtt/ {print $2}' | awk -F'/' '{print $2}')
+    if [ -n "$ping_ms" ]; then
+      ping_int=${ping_ms%.*}
+      if [ "$ping_int" -lt 50 ] 2>/dev/null; then
+        latency_str="<span color=\"#50fa7b\">${ping_ms} ms (Good)</span>"
+      elif [ "$ping_int" -lt 150 ] 2>/dev/null; then
+        latency_str="<span color=\"#f1fa8c\">${ping_ms} ms (Moderate)</span>"
+      else
+        latency_str="<span color=\"#ff5555\">${ping_ms} ms (High Lag)</span>"
+      fi
+    else
+      latency_str="<span color=\"#50fa7b\">Online</span>"
+    fi
+  else
+    latency_str="<span color=\"#ff5555\">Offline / Unreachable</span>"
+  fi
+
+  # Live Traffic Usage
+  rx_bytes=$(cat "/sys/class/net/${dev}/statistics/rx_bytes" 2>/dev/null || echo 0)
+  tx_bytes=$(cat "/sys/class/net/${dev}/statistics/tx_bytes" 2>/dev/null || echo 0)
+
+  prev_now=""
+  prev_rx=""
+  prev_tx=""
+  prev_rx_speed="0"
+  prev_tx_speed="0"
+  prev_dev=""
+
+  if [ -f "$STATE_FILE" ]; then
+    read -r prev_now prev_rx prev_tx prev_rx_speed prev_tx_speed prev_dev < "$STATE_FILE" 2>/dev/null
+  fi
+
+  if [ "$dev" = "$prev_dev" ] && [ -n "$prev_now" ]; then
+    eval "$(awk -v now="$now" -v prev_now="$prev_now" \
+               -v rx="$rx_bytes" -v prev_rx="$prev_rx" \
+               -v tx="$tx_bytes" -v prev_tx="$prev_tx" \
+               -v prev_rx_sp="${prev_rx_speed:-0}" -v prev_tx_sp="${prev_tx_speed:-0}" '
+      function get_trend(sp, prev_sp,   diff, rel) {
+        diff = sp - prev_sp;
+        if (prev_sp > 0.1) rel = diff / prev_sp;
+        else rel = 0;
+
+        if (diff > 0.5 || (prev_sp > 0.1 && rel > 0.20)) {
+          return sprintf("<span color=\"#50fa7b\">▲ +%.2f Mbps</span>", diff);
+        } else if (diff < -0.5 || (prev_sp > 0.1 && rel < -0.20)) {
+          return sprintf("<span color=\"#ff5555\">▼ %.2f Mbps</span>", diff);
+        } else {
+          return "<span color=\"#8b949e\">═ (stable)</span>";
+        }
+      }
+
+      BEGIN {
+        dt = now - prev_now;
+        if (dt <= 0.1) dt = 1;
+
+        # Megabits per second: (bytes * 8) / (1000000 * dt)
+        rx_sp = ((rx - prev_rx) * 8) / (1000000 * dt);
+        tx_sp = ((tx - prev_tx) * 8) / (1000000 * dt);
+
+        if (rx_sp < 0) rx_sp = 0;
+        if (tx_sp < 0) tx_sp = 0;
+
+        rx_trend = get_trend(rx_sp, prev_rx_sp);
+        tx_trend = get_trend(tx_sp, prev_tx_sp);
+
+        printf("rx_speed=\"%.2f\"\n", rx_sp);
+        printf("tx_speed=\"%.2f\"\n", tx_sp);
+        printf("rx_trend=\x27%s\x27\n", rx_trend);
+        printf("tx_trend=\x27%s\x27\n", tx_trend);
+      }
+    ')"
+  else
+    rx_speed="0.00"
+    tx_speed="0.00"
+    rx_trend="<span color=\"#8b949e\">(measuring...)</span>"
+    tx_trend="<span color=\"#8b949e\">(measuring...)</span>"
+  fi
+
+  # Save current state
+  echo "$now $rx_bytes $tx_bytes $rx_speed $tx_speed $dev" > "$STATE_FILE"
+
+  health_info=$(printf "Health:\n  Latency:   %s\n  Signal:    %s\n  Link Cap:  %s" "$latency_str" "$signal_str" "$link_cap")
+  usage_info=$(printf "Live Usage:\n  Download: %6.2f Mbps  %s\n  Upload:   %6.2f Mbps  %s" "$rx_speed" "$rx_trend" "$tx_speed" "$tx_trend")
+
+  tooltip=$(printf "%b\n\n%b\n\n%s" "$net_header" "$health_info" "$usage_info")
+else
+  tooltip="$net_header"
+fi
+
+jq -c -n --arg text "$text" --arg tooltip "$tooltip" '{text: $text, tooltip: $tooltip}'

@@ -1,0 +1,11 @@
+singleton Notifs Notifs.qml
+singleton Panels Panels.qml
+singleton Osd Osd.qml
+singleton SysInfo SysInfo.qml
+singleton Wallpaper Wallpaper.qml
+singleton AudioLink AudioLink.qml
+singleton Dictation Dictation.qml
+singleton MediaOrder MediaOrder.qml
+singleton WindowLink WindowLink.qml
+singleton NowPlaying NowPlaying.qml
+singleton OverlayStack OverlayStack.qml

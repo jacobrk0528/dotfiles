@@ -12,6 +12,10 @@ hl.env("XDG_SESSION_TYPE",         "wayland")
 hl.env("GBM_BACKEND",              "nvidia-drm")
 hl.env("__GLX_VENDOR_LIBRARY_NAME","nvidia")
 
+-- Without this, Qt apps (Dolphin) ignore kdeglobals and render with Qt's
+-- default light palette; there is no Plasma session here to apply it for them.
+hl.env("QT_QPA_PLATFORMTHEME", "kde")
+
 hl.env("XCURSOR_SIZE",   "24")
 hl.env("HYPRCURSOR_SIZE","24")
 hl.env("TZ",             "America/New_York")
@@ -26,18 +30,30 @@ hl.env("LC_ALL",         "en_US.UTF-8")
 local hostname = io.popen("cat /etc/hostname"):read("*l")
 
 hl.monitor({ output = "desc:Acer Technologies XB273 GX 0x15205CF0", mode = "1920x1080@60", position = "0x0", scale = 1 })		-- Middle
-hl.monitor({ output = "DP-7", mode = "1920x1080@60", position = "1920x0", scale = 1 })											-- Right
-hl.monitor({ output = "DP-8", mode = "1920x1080@60", position = "-1920x0", scale = 1 })											-- Left
+hl.monitor({ output = "DP-8", mode = "1920x1080@60", position = "1920x0", scale = 1 })											-- Right
+hl.monitor({ output = "DP-7", mode = "1920x1080@60", position = "-1920x0", scale = 1 })											-- Left
 hl.monitor({ output = "desc:Acer Technologies PM161Q C 25230110E4HA1", mode = "1920x1080@60", position = "0x1080", scale = 1 }) -- Bottom
 
 -----------------------
 ---- MY PROGRAMS ----
 -----------------------
 
+-- Palette generated from quickshell/theme.json (quickshell/scripts/apply-theme)
+local colors = dofile(os.getenv("HOME") .. "/.config/hypr/colors.lua")
+
 local terminal    = "ghostty"
-local fileManager = "dolphin"
-local menu        = "wofi --show drun --style ~/.config/wofi/style.css"
-local browser     = "google-chrome-stable"
+local fileManager = "/home/jkrebs/dotfiles/scripts/yazi-window"
+-- Kept alongside yazi for the things yazi has no native answer to: sftp:// and
+-- smb:// browsing.
+local dolphin     = "dolphin"
+-- Wrapped in a systemd cgroup scope with a memory ceiling: on this machine's 123GB RAM
+-- Chrome's own memory-pressure monitor almost never fires (it watches system-wide free
+-- memory), so leaking tabs (BigQuery/Dataform especially) balloon to 8-12GB before the
+-- renderer becomes unusable. MemoryHigh forces real reclaim/pressure early (kernel throttles,
+-- Chrome should start discarding/purging) well before that; MemoryMax is a hard backstop
+-- covering the WHOLE browser (all windows/tabs share one scope), set loose so it only
+-- protects against a total runaway rather than killing the whole session over one bad tab.
+local browser     = 'systemd-run --user --scope --collect -p MemoryHigh=8G -p MemoryMax=24G -- google-chrome-stable --profile-picker --js-flags="--max-old-space-size=4096"'
 local slack       = "slack"
 local btop        = "ghostty --title=btop -e bash -c 'btop'"
 
@@ -48,13 +64,13 @@ local btop        = "ghostty --title=btop -e bash -c 'btop'"
 
 -- See https://wiki.hypr.land/Configuring/Basics/Autostart/
 hl.on("hyprland.start", function()
-    hl.exec_cmd("/home/jkrebs/dotfiles/waybar/scripts/launch_waybar.sh")
-    hl.exec_cmd("hyprpaper")
-    hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/launch_logs.sh")
-    hl.exec_cmd(slack,                { workspace = "special:slack" })
-	hl.exec_cmd(btop,                 { workspace = "special:btop" })
-    hl.exec_cmd(terminal,             { workspace = "2" })
-    hl.exec_cmd("sleep 2 && " .. browser, { workspace = "3" })
+    hl.exec_cmd("qs")
+    hl.exec_cmd("hypridle")
+    hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/scripts/start_tmux_sessions.sh")
+    -- Placement is done by the script, not by exec workspace hints: the hint
+    -- targets the next window to map rather than the process launched, and a
+    -- visible special workspace swallows everything opened after it.
+    hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/scripts/start-apps.sh")
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
 	hl.exec_cmd("wl-paste --type text --watch cliphist store")
 	hl.exec_cmd("wl-paste --type image --watch cliphist store")
@@ -79,8 +95,8 @@ hl.config({
         border_size = 1,
 
         col = {
-            active_border   = "rgba(ffffff28)",
-            inactive_border = "rgba(ffffff28)",
+            active_border   = colors.active_border,
+            inactive_border = colors.inactive_border,
         },
 
         resize_on_border = false,
@@ -100,7 +116,7 @@ hl.config({
             enabled      = true,
             range        = 12,
             render_power = 2,
-            color        = 0x00000066,
+            color        = colors.shadow,
         },
 
         blur = {
@@ -184,13 +200,32 @@ hl.device({ name = "epic-mouse-v1", sensitivity = -0.5 })
 ---- LAYER RULES ----
 ---------------------------
 
--- make Waybar pretty
-hl.layer_rule({ match = { namespace = "waybar" }, blur = true })
+-- make the quickshell surfaces pretty
+hl.layer_rule({ match = { namespace = "quickshell" },               blur = true })
+hl.layer_rule({ match = { namespace = "quickshell-notifications" }, blur = true })
+hl.layer_rule({ match = { namespace = "quickshell-osd" },           blur = true })
+hl.layer_rule({ match = { namespace = "quickshell-overlay" },       blur = true })
+-- ignore_alpha keeps the blur on the widget panels only, not the
+-- fully transparent space between them.
+hl.layer_rule({ match = { namespace = "quickshell-desktop" },       blur = true, ignore_alpha = 0.2 })
 
 -- log windows go to special:logs
 hl.window_rule({ match = { title = "bc_utils_log" }, workspace = "special:logs" })
 hl.window_rule({ match = { title = "narsil_log"   }, workspace = "special:logs" })
 
+-- YouTube Music goes to special:media. Chrome ignores the --class the launcher
+-- passes for --app windows and derives one from the URL and profile instead, so
+-- match the class it actually reports.
+hl.window_rule({ match = { class = "chrome-music\\.youtube\\.com__.*" }, workspace = "special:media" })
+
+-- yazi's own ghostty window (scripts/yazi-window), floated large enough for the
+-- preview pane to be worth having. Three rules rather than one: a Lua table has
+-- no key order, and size/center only land once the window is already floating.
+-- Pixels rather than "70% 70%" — Hyprland 0.56's Lua rule parser silently drops
+-- percentage sizes. Every monitor here is 1920x1080.
+hl.window_rule({ name = "yazi-float",  match = { class = "com\\.jkrebs\\.yazi" }, float  = true })
+hl.window_rule({ name = "yazi-size",   match = { class = "com\\.jkrebs\\.yazi" }, size   = "1344 756" })
+hl.window_rule({ name = "yazi-center", match = { class = "com\\.jkrebs\\.yazi" }, center = true })
 
 ------------------------------
 ---- WORKSPACE ASSIGNMENTS ----
@@ -205,18 +240,18 @@ hl.window_rule({ match = { title = "narsil_log"   }, workspace = "special:logs" 
 -- See https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
 
 local workspace_configs = {
-    terra = {
+    optimus = {
 		-- Left
-        { workspace = "1",  monitor = "DP-8" },
-        { workspace = "4",  monitor = "DP-8" },
+        { workspace = "1",  monitor = "DP-7" },
+        { workspace = "4",  monitor = "DP-7" },
 
 		-- Middle
         { workspace = "2",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
         { workspace = "5",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
 
 		-- Right
-        { workspace = "3",  monitor = "DP-7" },
-        { workspace = "6",  monitor = "DP-7" },
+        { workspace = "3",  monitor = "DP-8" },
+        { workspace = "6",  monitor = "DP-8" },
 
 		-- Bottom
         { workspace = "7",  monitor = "desc:Acer Technologies PM161Q C 25230110E4HA1" },
@@ -253,13 +288,24 @@ hl.bind(mainMod .. " + Home", hl.dsp.exec_cmd("hyprshot -m region --clipboard-on
 -- Apps
 hl.bind(mainMod .. " + T",     hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + Q",     hl.dsp.window.close())
-hl.bind(mainMod .. " + E",     hl.dsp.exec_cmd(fileManager))
-hl.bind(mainMod .. " + V",     hl.dsp.exec_cmd("cliphist list | wofi --dmenu | cliphist decode | wl-copy"))
-hl.bind(mainMod .. " + space", hl.dsp.exec_cmd(menu))
+hl.bind(mainMod .. " + E",         hl.dsp.exec_cmd(fileManager))
+hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(dolphin))
+hl.bind(mainMod .. " + V",     hl.dsp.global("quickshell:clipboard"))
+hl.bind(mainMod .. " + space", hl.dsp.global("quickshell:launcher"))
 hl.bind(mainMod .. " + P",     hl.dsp.exec_cmd("pgadmin4"))
 hl.bind(mainMod .. " + B",     hl.dsp.exec_cmd(browser))
 hl.bind(mainMod .. " + S",     hl.dsp.exec_cmd(slack))
 hl.bind(mainMod .. " + CTRL + Q", hl.dsp.exit())
+
+-- Shell panels (quickshell)
+hl.bind(mainMod .. " + D",         hl.dsp.global("quickshell:launcher"))
+hl.bind(mainMod .. " + N",         hl.dsp.global("quickshell:notifications"))
+hl.bind(mainMod .. " + SHIFT + N", hl.dsp.global("quickshell:dismissNotifications"))
+hl.bind(mainMod .. " + C",         hl.dsp.global("quickshell:control"))
+hl.bind(mainMod .. " + slash",     hl.dsp.global("quickshell:cheatsheet"))
+hl.bind(mainMod .. " + Escape",    hl.dsp.global("quickshell:power"))
+hl.bind(mainMod .. " + W",         hl.dsp.global("quickshell:wallpapers"))
+
 
 -- Audio keybinds
 hl.bind(mainMod .. " + CTRL + 1", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
@@ -292,7 +338,7 @@ end
 
 -- Special workspaces
 hl.bind(mainMod .. " + semicolon",        hl.dsp.workspace.toggle_special("logs"))
-hl.bind(mainMod .. " + apostrophe",       hl.dsp.workspace.toggle_special("media"))
+hl.bind(mainMod .. " + apostrophe",       hl.dsp.exec_cmd("/home/jkrebs/dotfiles/quickshell/scripts/media-scratchpad"))
 hl.bind(mainMod .. " + period",           hl.dsp.workspace.toggle_special("slack"))
 hl.bind(mainMod .. " + comma",         hl.dsp.workspace.toggle_special("btop"))
 
@@ -303,7 +349,16 @@ hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 -- Lock
 hl.bind(mainMod .. " + End", hl.dsp.exec_cmd("hyprlock"))
 
--- Swap DP-7 / DP-8 (KVM sometimes swaps which port each monitor lands on)
+-- Dictation: hold Insert to record, release to transcribe + type
+hl.bind("Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh start"))
+hl.bind("Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh stop"),  { release = true })
+-- Dictation: press Delete to start recording, press again to transcribe + type
+hl.bind("Delete", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh toggle"))
+-- Dictation: hold SUPER+Insert, say a word, release, type its correct spelling to teach it
+hl.bind(mainMod .. " + Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh teach-start"))
+hl.bind(mainMod .. " + Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh stop"), { release = true })
+
+-- Swap DP-8 / DP-7 (KVM sometimes swaps which port each monitor lands on)
 hl.bind(mainMod .. " + CTRL + M", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/swap-monitors"))
 
 -- Mouse move/resize

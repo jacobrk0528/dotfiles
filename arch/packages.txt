@@ -29,12 +29,13 @@ google-chrome
 google-cloud-cli
 google-cloud-cli-bq
 google-cloud-cli-gsutil
+greetd
 grim
 gvfs
 htop
+hypridle
 hyprland
 hyprlock
-hyprpaper
 hyprshot
 jq
 kdeconnect
@@ -78,6 +79,7 @@ postgresql
 postman-bin
 python
 python312
+quickshell
 reflector
 remmina
 ripgrep
@@ -105,14 +107,12 @@ usbutils
 uwsm
 valkey
 vim
-waybar
 wev
 wget
 whois
 wireplumber
 wl-clipboard
 wl-clip-persist
-wofi
 xdg-desktop-portal-hyprland
 xrdp
 zen-browser-bin

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Run YouTube Music in its own Chrome instance.
+#
+# Chrome publishes exactly one MPRIS player per browser process and routes all
+# tab audio through one audio service, so music sharing a browser with Twitch
+# or YouTube cannot be paused or skipped independently. A separate
+# --user-data-dir gives it its own process, and therefore its own MPRIS player
+# and its own PipeWire stream — the shell then shows it as a separate card with
+# working transport controls.
+#
+# Costs a one-time sign-in in this profile.
+#
+# Chrome ignores --class for --app windows and derives its own from the URL and
+# profile, so the window rule parking this in special:media matches the class it
+# actually reports: chrome-music.youtube.com__-Default.
+
+exec google-chrome-stable \
+    --user-data-dir="$HOME/.local/share/chrome-ytmusic" \
+    --class=YouTubeMusic \
+    --no-first-run \
+    --no-default-browser-check \
+    --app=https://music.youtube.com

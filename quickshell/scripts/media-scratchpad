@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Toggle the media scratchpad, launching YouTube Music into it if it is empty.
+#
+# The window rule in hyprland.lua sends YouTube Music to special:media on open,
+# so launching is all that is needed to populate it — but a window that opens
+# into a hidden scratchpad is invisible, so wait for it and then reveal.
+
+set -euo pipefail
+
+WS="special:media"
+LAUNCH="$HOME/dotfiles/quickshell/scripts/ytmusic"
+
+occupied() {
+    hyprctl clients -j | jq -e --arg ws "$WS" 'any(.[]; .workspace.name == $ws)' >/dev/null 2>&1
+}
+
+visible() {
+    hyprctl monitors -j | jq -e --arg ws "$WS" 'any(.[]; .specialWorkspace.name == $ws)' >/dev/null 2>&1
+}
+
+toggle() {
+    hyprctl dispatch 'hl.dsp.workspace.toggle_special("media")' >/dev/null
+}
+
+if occupied; then
+    toggle
+    exit 0
+fi
+
+setsid "$LAUNCH" >/dev/null 2>&1 &
+
+# Chrome can take a few seconds to map its first window.
+for _ in $(seq 1 60); do
+    sleep 0.25
+    occupied && break
+done
+
+occupied && ! visible && toggle
+exit 0

@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Two-line system readout for the hyprlock widget.
+
+Reuses quickshell/scripts/sysinfo so the lock screen and the desktop bar read
+the same probes. Prints line 1 (CPU, memory) or line 2 (GPU, disk).
+
+sysinfo is loaded as a module rather than run as a subprocess: hyprlock's label
+commands get a near-empty environment, where sys.executable is empty and no
+interpreter can be spawned by name.
+"""
+
+import importlib.machinery
+import importlib.util
+import os
+import sys
+
+SEP = "   ·   "
+SYSINFO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sysinfo")
+
+
+def load_sysinfo():
+    spec = importlib.util.spec_from_loader(
+        "sysinfo", importlib.machinery.SourceFileLoader("sysinfo", SYSINFO)
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def probe(fn, default=None):
+    try:
+        return fn()
+    except Exception:
+        return default
+
+
+def main():
+    which = sys.argv[1] if len(sys.argv) > 1 else "1"
+    try:
+        si = load_sysinfo()
+    except Exception:
+        return
+
+    # The two lines share one template so that in a monospace font their
+    # percentages, temperatures and "/" all land in the same columns; the block
+    # then reads as a 2x3 grid rather than two unrelated sentences. Missing
+    # readings become blanks so the surviving columns keep their positions.
+    if which == "1":
+        mem = probe(si.memory)
+        temp = probe(si.cpu_temp)
+        cells = [
+            ("󰻠", "CPU ", f"{probe(si.cpu_usage, 0.0):.0f}%"),
+            ("󰔏", "", f"{temp:.0f}°C" if temp is not None else ""),
+            ("󰍛", "MEM ", f"{mem['used']:.1f} / {mem['total']:.0f} GB" if mem else ""),
+        ]
+    else:
+        gpu = probe(si.gpu)
+        disk = probe(si.disk)
+        cells = [
+            ("󰢮", "GPU ", f"{gpu['util']:.0f}%" if gpu else ""),
+            ("󰔏", "", f"{gpu['temp']:.0f}°C" if gpu else ""),
+            ("󰋊", "DISK", f"{disk['used']:.0f} / {disk['total']:.0f} GB" if disk else ""),
+        ]
+
+    (i1, l1, v1), (i2, l2, v2), (i3, l3, v3) = cells
+    pct, tmp = v1.rjust(4), v2.rjust(5)
+    if v3:
+        used, total = v3.split(" / ")
+        v3 = f"{used.rjust(5)} / {total.rjust(7)}"
+    line = (f"{i1}  {l1}{pct}{SEP}{i2}  {tmp}{SEP}{i3}  {l3} {v3}")
+    sys.stdout.write(line.rstrip())
+
+
+if __name__ == "__main__":
+    main()

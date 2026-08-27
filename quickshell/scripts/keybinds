@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""Extract Hyprland keybinds from hyprland.lua as JSON for the shell cheatsheet.
+
+Groups binds under the `-- Section` comments already present in the config, and
+renders each dispatcher into a human description rather than raw Lua.
+"""
+
+import json
+import os
+import re
+import sys
+
+CONFIG = os.path.expanduser("~/dotfiles/hypr/hyprland.lua")
+
+# hl.bind("<key expr>", <action expr>[, opts])
+BIND = re.compile(r'^\s*hl\.bind\(\s*(.+?),\s*(hl\.dsp\..*?|function.*?)\s*(?:,\s*\{.*\})?\s*\)\s*$')
+SECTION = re.compile(r'^\s*--\s*(.+?)\s*$')
+LOCAL = re.compile(r"""^\s*local\s+(\w+)\s*=\s*(['"])(.*)\2\s*$""")
+
+# Comment lines that are decoration rather than a section title.
+NOISE = re.compile(r'^[-=# ]*$|^See |^https?://')
+
+
+def resolve(expr, vars):
+    """Turn a Lua string expression into display text.
+
+    Returns (text, resolved). Anything referencing an identifier we did not
+    capture — loop variables, mainly — comes back unresolved so the caller can
+    skip it rather than print `SUPER + key`.
+    """
+    expr = expr.strip()
+    parts = [p.strip() for p in expr.split("..")]
+    out = []
+    ok = True
+    for p in parts:
+        if len(p) > 1 and p[0] == p[-1] and p[0] in "\"'":
+            out.append(p[1:-1])
+        elif p in vars:
+            out.append(vars[p])
+        else:
+            out.append(p)
+            ok = False
+    return "".join(out).strip(), ok
+
+
+def describe(action, vars):
+    """Render a dispatcher expression as a short human description."""
+    a = action.strip()
+
+    m = re.match(r'hl\.dsp\.exec_cmd\((.*)\)$', a, re.S)
+    if m:
+        cmd, _ = resolve(m.group(1), vars)
+        cmd = cmd.replace(os.path.expanduser("~"), "~")
+        if len(cmd) > 52:
+            cmd = cmd[:49] + "..."
+        return cmd
+
+    m = re.match(r'hl\.dsp\.global\("[^:]*:(\w+)"\)$', a)
+    if m:
+        name = m.group(1)
+        pretty = re.sub(r'([a-z])([A-Z])', r'\1 \2', name).lower()
+        return "Shell: " + pretty
+
+    m = re.match(r'hl\.dsp\.focus\(\{\s*direction\s*=\s*"(\w+)"', a)
+    if m:
+        return "Focus " + m.group(1)
+
+    m = re.match(r'hl\.dsp\.focus\(\{\s*workspace\s*=\s*"?([\w+-]+)"?', a)
+    if m:
+        return "Workspace " + m.group(1)
+
+    m = re.match(r'hl\.dsp\.window\.move\(\{\s*workspace\s*=\s*"?([\w+-]+)"?', a)
+    if m:
+        return "Move window to workspace " + m.group(1)
+
+    m = re.match(r'hl\.dsp\.workspace\.toggle_special\("(\w+)"\)$', a)
+    if m:
+        return "Toggle special: " + m.group(1)
+
+    if "window.resize_active" in a:
+        m = re.search(r'x\s*=\s*(-?\d+),\s*y\s*=\s*(-?\d+)', a)
+        if m:
+            x, y = int(m.group(1)), int(m.group(2))
+            axis = "wider" if x > 0 else "narrower" if x < 0 else "taller" if y > 0 else "shorter"
+            return "Resize " + axis
+
+    simple = {
+        "hl.dsp.window.close()": "Close window",
+        "hl.dsp.exit()": "Exit Hyprland",
+        "hl.dsp.window.drag()": "Drag window",
+        "hl.dsp.window.resize()": "Resize window",
+    }
+    if a in simple:
+        return simple[a]
+
+    m = re.match(r'hl\.dsp\.window\.fullscreen\((\d+)\)$', a)
+    if m:
+        return "Fullscreen" if m.group(1) == "0" else "Maximize"
+
+    return re.sub(r'^hl\.dsp\.', '', a)
+
+
+def main():
+    try:
+        lines = open(CONFIG).read().splitlines()
+    except OSError as e:
+        json.dump({"error": str(e), "sections": []}, sys.stdout)
+        return
+
+    vars = {}
+    sections = []
+    current = None
+
+    for line in lines:
+        line = re.sub(r'\)\s+--\s.*$', ')', line)
+
+        m = LOCAL.match(line)
+        if m:
+            vars[m.group(1)] = m.group(3)
+            continue
+
+        m = BIND.match(line)
+        if m:
+            key, resolved = resolve(m.group(1), vars)
+            if not resolved:
+                continue  # generated in a loop; described by hand below
+            desc = describe(m.group(2), vars)
+            if current is None:
+                current = {"name": "General", "binds": []}
+                sections.append(current)
+            current["binds"].append({"key": key, "desc": desc})
+            continue
+
+        m = SECTION.match(line)
+        if m and line.lstrip().startswith("--"):
+            title = m.group(1).strip("- ").split(":")[0].strip()
+            if not title or NOISE.match(title) or len(title) > 40:
+                continue
+            # Only start a new group once the previous one has content.
+            if current is None or current["binds"]:
+                current = {"name": title, "binds": []}
+                sections.append(current)
+            else:
+                current["name"] = title
+
+    # Workspace binds are generated in a Lua loop, so state them directly.
+    sections.append({
+        "name": "Workspaces",
+        "binds": [
+            {"key": "SUPER + 1-9,0", "desc": "Switch to workspace"},
+            {"key": "SUPER + SHIFT + 1-9,0", "desc": "Move window to workspace"},
+            {"key": "SUPER + scroll", "desc": "Cycle workspaces"},
+        ],
+    })
+
+    # Merge repeated headings (e.g. several "Dictation:" comment blocks).
+    merged = []
+    for sec in sections:
+        if not sec["binds"]:
+            continue
+        if merged and merged[-1]["name"] == sec["name"]:
+            merged[-1]["binds"].extend(sec["binds"])
+        else:
+            merged.append(sec)
+    sections = merged
+    json.dump({"sections": sections}, sys.stdout)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Set the wallpaper and persist it.
+#
+#   wallpaper                 print the current wallpaper
+#   wallpaper <path>          apply and persist
+#   wallpaper --list          print every available wallpaper path
+#
+# The shell draws the wallpaper itself (see desktop/Wallpaper.qml) and picks
+# this file up live, so applying is just a write. hyprlock reads the generated
+# include so the lock screen always matches the desktop.
+
+set -euo pipefail
+
+DOTS="$HOME/dotfiles"
+WALLS="$DOTS/hypr/wallpapers"
+STATE="$DOTS/hypr/wallpaper.json"
+LOCK_INC="$DOTS/hypr/wallpaper.conf"
+
+case "${1:-}" in
+    --list)
+        find "$WALLS" -maxdepth 2 -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) | sort
+        exit 0
+        ;;
+    "")
+        python3 -c "import json,sys; print(json.load(open('$STATE'))['path'])" 2>/dev/null || true
+        exit 0
+        ;;
+esac
+
+WALL="$(readlink -f "$1")"
+[ -f "$WALL" ] || { echo "no such wallpaper: $1" >&2; exit 1; }
+
+python3 - "$WALL" "$STATE" <<'PY'
+import json, sys
+wall, state = sys.argv[1], sys.argv[2]
+with open(state, "w") as f:
+    json.dump({"path": wall}, f, indent=2)
+    f.write("\n")
+PY
+
+cat > "$LOCK_INC" <<EOF
+# Written by quickshell/scripts/wallpaper — the lock screen background.
+\$wallpaper = $WALL
+EOF
+
+echo "$WALL"

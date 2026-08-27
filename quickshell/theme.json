@@ -1,0 +1,31 @@
+{
+  "name": "Slate & Frost",
+
+  "base": "#0d1117",
+  "surface": "#161b22",
+  "text": "#ffffff",
+  "accent": "#8be9fd",
+
+  "green": "#50fa7b",
+  "yellow": "#f1fa8c",
+  "red": "#ff5555",
+  "pink": "#ff79c6",
+  "orange": "#ffb86c",
+  "purple": "#bd93f9",
+  "gray": "#8b949e",
+
+  "surfaceOpacity": 0.82,
+  "panelOpacity": 0.94,
+  "widgetOpacity": 0.55,
+
+  "font": "JetBrainsMono Nerd Font",
+  "fontSize": 12,
+
+  "radius": 10,
+  "panelRadius": 16,
+
+  "barHeight": 32,
+  "barMargin": 12,
+
+  "desktopMonitor": ""
+}

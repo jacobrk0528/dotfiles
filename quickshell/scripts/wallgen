@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""Generate wallpapers from the shell palette.
+
+Every wallpaper is built from theme.json, so the desktop background always
+belongs to the same colour world as the bar, panels and lock screen.
+
+    quickshell/scripts/wallgen            # all styles at native resolution
+    quickshell/scripts/wallgen mesh ridge # only these
+    quickshell/scripts/wallgen --size 3840x2160
+"""
+
+import argparse
+import json
+import os
+
+import numpy as np
+from PIL import Image, ImageFilter
+
+DOTS = os.path.expanduser("~/dotfiles")
+THEME = os.path.join(DOTS, "quickshell", "theme.json")
+OUT = os.path.join(DOTS, "hypr", "wallpapers", "generated")
+
+
+def load_theme():
+    with open(THEME) as f:
+        return json.load(f)
+
+
+def rgb(hex_color):
+    h = hex_color.lstrip("#")
+    return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], dtype=np.float64)
+
+
+def grid(w, h):
+    """Normalised coordinate grids, y and x in 0..1."""
+    y = np.linspace(0, 1, h)[:, None]
+    x = np.linspace(0, 1, w)[None, :]
+    return y, x
+
+
+def smooth_noise(w, h, scale, rng):
+    """Value noise: random lattice upscaled with bicubic smoothing."""
+    small = rng.random((max(2, int(h / scale)), max(2, int(w / scale))))
+    img = Image.fromarray((small * 255).astype(np.uint8)).resize((w, h), Image.BICUBIC)
+    return np.asarray(img, dtype=np.float64) / 255.0
+
+
+def finish(arr, grain=3.0, seed=0):
+    """Clamp, add fine grain to kill banding, return an image."""
+    rng = np.random.default_rng(seed)
+    arr = arr + rng.normal(0, grain, arr.shape)
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+
+
+def mesh(w, h, t, seed=7):
+    """Soft multi-point colour mesh over the base tone."""
+    rng = np.random.default_rng(seed)
+    y, x = grid(w, h)
+    aspect = w / h
+
+    canvas = np.repeat(np.repeat(rgb(t["base"])[None, None, :], h, 0), w, 1)
+
+    # Wide, overlapping fields — they should read as one continuous wash
+    # rather than as separate coloured spots.
+    points = [
+        (0.12, 0.18, rgb(t["accent"]), 1.15, 0.50),
+        (0.88, 0.26, rgb(t["purple"]), 1.05, 0.44),
+        (0.68, 0.88, rgb(t["pink"]), 0.95, 0.30),
+        (0.22, 0.92, rgb(t["accent"]), 0.90, 0.26),
+        (0.50, 0.50, rgb(t["purple"]), 1.30, 0.16),
+    ]
+
+    for px, py, color, radius, strength in points:
+        d = np.sqrt(((x - px) * aspect) ** 2 + (y - py) ** 2)
+        falloff = np.clip(1 - d / radius, 0, 1) ** 3.0
+        canvas += (color - canvas) * (falloff * strength)[:, :, None]
+
+    # Warp and blur so the blend has no visible seams between fields.
+    canvas += ((smooth_noise(w, h, 260, rng) - 0.5) * 12)[:, :, None]
+    canvas = np.asarray(
+        Image.fromarray(np.clip(canvas, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(w / 42)),
+        dtype=np.float64,
+    )
+
+    vignette = 1 - np.clip(np.sqrt(((x - 0.5) * aspect) ** 2 + (y - 0.5) ** 2) / 0.95, 0, 1) ** 2 * 0.5
+    canvas *= vignette[:, :, None]
+    return finish(canvas, 2.5, seed)
+
+
+def ridge(w, h, t, seed=11):
+    """Layered ridgelines receding into haze."""
+    rng = np.random.default_rng(seed)
+    y, x = grid(w, h)
+
+    base = rgb(t["base"])
+    sky_top = base * 0.55
+    sky_bottom = base + (rgb(t["accent"]) - base) * 0.16
+    canvas = sky_top + (sky_bottom - sky_top) * (y ** 1.4)
+    canvas = np.repeat(canvas, w, axis=1)[:, :, None] if canvas.ndim == 2 else canvas
+    canvas = np.broadcast_to(
+        (sky_top + (sky_bottom - sky_top) * (y ** 1.4)[:, :, None]), (h, w, 3)
+    ).copy()
+
+    # A low glow where the sun would be.
+    glow = np.clip(1 - np.sqrt(((x - 0.72) * (w / h)) ** 2 + (y - 0.58) ** 2) / 0.5, 0, 1) ** 3
+    canvas += (rgb(t["orange"]) - canvas) * (glow * 0.20)[:, :, None]
+
+    layers = 6
+    for i in range(layers):
+        depth = i / (layers - 1)
+        horizon = 0.52 + depth * 0.34
+        amp = 0.045 + depth * 0.055
+
+        phase = rng.random() * 10
+        freq = 1.4 + rng.random() * 1.6
+        profile = (
+            np.sin(x[0] * freq * 2 * np.pi + phase) * 0.55
+            + np.sin(x[0] * freq * 4.7 * np.pi + phase * 1.7) * 0.30
+            + np.sin(x[0] * freq * 9.3 * np.pi + phase * 0.6) * 0.15
+        )
+        ridge_y = horizon - profile * amp
+
+        # Near layers are darker; far ones fade into the sky.
+        tone = base * (0.32 + 0.5 * (1 - depth))
+        mask = (y >= ridge_y[None, :]).astype(np.float64)
+        mask = np.asarray(
+            Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2)),
+            dtype=np.float64,
+        ) / 255.0
+
+        canvas = canvas * (1 - mask[:, :, None]) + tone * mask[:, :, None]
+
+    canvas += ((smooth_noise(w, h, 200, rng) - 0.5) * 8)[:, :, None]
+    return finish(canvas, 2.0, seed)
+
+
+def aurora(w, h, t, seed=23):
+    """Vertical light curtains over a near-black field."""
+    rng = np.random.default_rng(seed)
+    y, x = grid(w, h)
+
+    canvas = np.broadcast_to(rgb(t["base"])[None, None, :] * 0.65, (h, w, 3)).copy()
+
+    bands = [
+        (0.28, rgb(t["accent"]), 0.34),
+        (0.46, rgb(t["purple"]), 0.30),
+        (0.66, rgb(t["pink"]), 0.22),
+        (0.80, rgb(t["accent"]), 0.18),
+    ]
+
+    warp = (smooth_noise(w, h, 300, rng) - 0.5) * 0.22
+
+    for center, color, strength in bands:
+        offset = np.sin(y * np.pi * 1.3 + center * 6) * 0.06
+        d = np.abs(x + warp + offset - center)
+        band = np.exp(-(d ** 2) / (2 * 0.045 ** 2))
+        # Curtains are brightest at the top and dissolve downward.
+        band *= np.clip(1.15 - y, 0, 1) ** 1.5
+        canvas += (color - canvas) * (band * strength)[:, :, None]
+
+    canvas = np.asarray(
+        Image.fromarray(np.clip(canvas, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3)),
+        dtype=np.float64,
+    )
+
+    vignette = 1 - np.clip(np.sqrt(((x - 0.5) * (w / h)) ** 2 + (y - 0.35) ** 2) / 1.1, 0, 1) ** 2 * 0.55
+    canvas *= vignette[:, :, None]
+    return finish(canvas, 2.5, seed)
+
+
+def topo(w, h, t, seed=31):
+    """Contour lines through smooth noise — quiet, technical."""
+    rng = np.random.default_rng(seed)
+    y, x = grid(w, h)
+
+    field = (
+        smooth_noise(w, h, 320, rng) * 0.6
+        + smooth_noise(w, h, 150, rng) * 0.3
+        + smooth_noise(w, h, 70, rng) * 0.1
+    )
+
+    canvas = np.broadcast_to(rgb(t["base"])[None, None, :], (h, w, 3)).copy()
+
+    # Distance to the nearest contour level, as a thin antialiased line.
+    levels = 26
+    scaled = field * levels
+    dist = np.abs(scaled - np.round(scaled))
+    lines = np.clip(1 - dist / 0.085, 0, 1) ** 1.6
+
+    # Fade the lines toward one corner and tint them with the accent.
+    weight = np.clip(1.25 - np.sqrt(((x - 0.25) * (w / h)) ** 2 + (y - 0.25) ** 2) / 1.15, 0, 1)
+    tint = rgb(t["accent"]) * 0.75 + rgb(t["text"]) * 0.25
+    canvas += (tint - canvas) * (lines * weight * 0.30)[:, :, None]
+
+    # Every fifth contour reads as a major line.
+    major = np.clip(1 - np.abs(field * (levels / 5) - np.round(field * (levels / 5))) / 0.05, 0, 1) ** 1.6
+    canvas += (tint - canvas) * (major * weight * 0.22)[:, :, None]
+
+    vignette = 1 - np.clip(np.sqrt(((x - 0.5) * (w / h)) ** 2 + (y - 0.5) ** 2) / 1.0, 0, 1) ** 2 * 0.45
+    canvas *= vignette[:, :, None]
+    return finish(canvas, 2.0, seed)
+
+
+def dusk(w, h, t, seed=43):
+    """Minimal two-tone gradient with a single soft light source."""
+    rng = np.random.default_rng(seed)
+    y, x = grid(w, h)
+    aspect = w / h
+
+    top = rgb(t["base"]) * 0.5
+    bottom = rgb(t["base"]) + (rgb(t["purple"]) - rgb(t["base"])) * 0.22
+    canvas = np.broadcast_to((top + (bottom - top) * (y ** 1.25)[:, :, None]), (h, w, 3)).copy()
+
+    d = np.sqrt(((x - 0.78) * aspect) ** 2 + (y - 0.24) ** 2)
+    glow = np.clip(1 - d / 0.62, 0, 1) ** 2.6
+    canvas += (rgb(t["accent"]) - canvas) * (glow * 0.42)[:, :, None]
+
+    core = np.clip(1 - d / 0.055, 0, 1) ** 2
+    canvas += (rgb(t["text"]) - canvas) * (core * 0.5)[:, :, None]
+
+    canvas += ((smooth_noise(w, h, 400, rng) - 0.5) * 10)[:, :, None]
+    return finish(canvas, 2.5, seed)
+
+
+STYLES = {
+    "mesh": mesh,
+    "ridge": ridge,
+    "aurora": aurora,
+    "topo": topo,
+    "dusk": dusk,
+}
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("styles", nargs="*", choices=list(STYLES) + [], default=None)
+    ap.add_argument("--size", default="1920x1080")
+    args = ap.parse_args()
+
+    w, h = (int(v) for v in args.size.lower().split("x"))
+    theme = load_theme()
+    os.makedirs(OUT, exist_ok=True)
+
+    chosen = args.styles or list(STYLES)
+    for name in chosen:
+        path = os.path.join(OUT, f"{name}.png")
+        STYLES[name](w, h, theme).save(path)
+        print(f"{name:8s} -> {path}")
+
+
+if __name__ == "__main__":
+    main()

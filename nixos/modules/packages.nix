@@ -47,15 +47,15 @@ in
     # --- Wayland / Hyprland ---
     grim
     slurp
-    hyprpaper
+    hypridle
     hyprshot
     hyprlock
     cliphist
     wl-clipboard
     wl-clip-persist
     uwsm
-    waybar
-    wofi
+    quickshell
+    greetd
 
     # --- Audio ---
     pavucontrol

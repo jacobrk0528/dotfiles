@@ -1,0 +1,21 @@
+#!/bin/bash
+
+gpu_util=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1 | xargs)
+
+if [ -z "$gpu_util" ]; then
+  text="—"
+  tooltip="GPU Utilization: Unavailable"
+else
+  if [ "$gpu_util" -lt 50 ] 2>/dev/null; then
+    util_color="<span color=\"#50fa7b\">${gpu_util}%</span>"
+  elif [ "$gpu_util" -lt 85 ] 2>/dev/null; then
+    util_color="<span color=\"#f1fa8c\">${gpu_util}% (High)</span>"
+  else
+    util_color="<span color=\"#ff5555\">${gpu_util}% (CRITICAL)</span>"
+  fi
+
+  tooltip=$(printf "GPU Utilization:\n  %b" "$util_color")
+  text="${gpu_util}%"
+fi
+
+jq -c -n --arg text "$text" --arg tooltip "$tooltip" '{text: $text, tooltip: $tooltip}'

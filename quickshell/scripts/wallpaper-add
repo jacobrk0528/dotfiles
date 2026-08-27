@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""Import a wallpaper from a URL or a local path into hypr/wallpapers.
+
+Prints the imported path on success; exits non-zero with a message on stderr
+otherwise, so the picker can show what went wrong.
+"""
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+WALLS = os.path.expanduser("~/dotfiles/hypr/wallpapers")
+URL = re.compile(r"^https?://", re.I)
+
+
+def fail(msg):
+    print(msg, file=sys.stderr)
+    sys.exit(1)
+
+
+def unique(path):
+    """Never clobber an existing wallpaper; suffix instead."""
+    stem, ext = os.path.splitext(path)
+    n = 1
+    while os.path.exists(path):
+        path = f"{stem}-{n}{ext}"
+        n += 1
+    return path
+
+
+def fetch(url):
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    tmp.close()
+    result = subprocess.run(
+        ["curl", "-fsSL", "--max-time", "90", "--max-filesize", "80M", "-o", tmp.name, url],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        os.unlink(tmp.name)
+        detail = result.stderr.strip() or f"curl exited {result.returncode}"
+        fail(f"download failed: {detail}")
+    name = os.path.basename(url.split("?")[0]) or "wallpaper"
+    return tmp.name, name
+
+
+def main():
+    if len(sys.argv) != 2 or not sys.argv[1].strip():
+        fail("usage: wallpaper-add <url|path>")
+
+    src = sys.argv[1].strip()
+    os.makedirs(WALLS, exist_ok=True)
+
+    is_url = bool(URL.match(src))
+    if is_url:
+        source, name = fetch(src)
+    else:
+        source = os.path.abspath(os.path.expanduser(src))
+        if not os.path.isfile(source):
+            fail(f"no such file: {src}")
+        name = os.path.basename(source)
+
+    # Trust the decoded content, not the extension the URL claimed.
+    try:
+        from PIL import Image
+        with Image.open(source) as im:
+            fmt = (im.format or "").lower()
+            im.verify()
+    except Exception as e:
+        if is_url:
+            os.unlink(source)
+        fail(f"not a usable image: {e}")
+
+    ext = {"jpeg": ".jpg", "png": ".png", "webp": ".webp"}.get(fmt, "." + fmt)
+    stem = re.sub(r"[^A-Za-z0-9._-]", "_", os.path.splitext(name)[0])[:60] or "wallpaper"
+    dest = unique(os.path.join(WALLS, stem + ext))
+
+    if is_url:
+        shutil.move(source, dest)
+    else:
+        if os.path.dirname(source) == WALLS:
+            fail("already in the wallpaper folder")
+        shutil.copy2(source, dest)
+    os.chmod(dest, 0o644)
+
+    print(dest)
+
+
+if __name__ == "__main__":
+    main()

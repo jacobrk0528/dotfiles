@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Now-playing text for the hyprlock widget.
+#
+# hyprlock runs label commands with a near-empty environment, so PATH and the
+# locale are set here rather than inherited; without LC_ALL the character
+# slicing used to truncate long titles would cut multi-byte glyphs in half.
+#
+# Usage: lock-media header|title|artist
+# Every subcommand prints nothing when no player is actually playing, which
+# collapses the label to zero height instead of leaving a stale track on screen.
+#
+# There is deliberately no album-art subcommand: hyprlock 0.9.6 decodes an
+# `image` element once at startup and ignores reload_cmd, reload_time and
+# SIGUSR2, so a cover could never be kept in step with the music.
+
+export PATH=/usr/local/bin:/usr/bin:/bin
+export LC_ALL=C.utf8
+
+FIELD_SEP=$'\x1f'
+
+# Prefer a player that reports an album: Chrome publishes one MPRIS player per
+# browser process, so a music tab and a livestream both show up as "Playing" and
+# only the music one carries album metadata.
+now_playing() {
+    local best="" fallback="" player status title artist album
+    while IFS="$FIELD_SEP" read -r player status title artist album; do
+        [ "$status" = "Playing" ] || continue
+        [ -n "$title" ] || continue
+        if [ -n "$album" ] && [ -z "$best" ]; then
+            best="${title}${FIELD_SEP}${artist}"
+        elif [ -z "$fallback" ]; then
+            fallback="${title}${FIELD_SEP}${artist}"
+        fi
+    done < <(playerctl -a metadata --format \
+        "{{playerName}}${FIELD_SEP}{{status}}${FIELD_SEP}{{title}}${FIELD_SEP}{{artist}}${FIELD_SEP}{{album}}" \
+        2>/dev/null)
+    printf '%s' "${best:-$fallback}"
+}
+
+ellipsize() {
+    local s=$1 max=$2
+    if [ "${#s}" -gt "$max" ]; then
+        printf '%s…' "${s:0:$((max - 1))}"
+    else
+        printf '%s' "$s"
+    fi
+}
+
+case "$1" in
+    header)
+        [ -n "$(now_playing)" ] && printf '󰝚  NOW PLAYING'
+        ;;
+    title)
+        IFS="$FIELD_SEP" read -r title _ <<< "$(now_playing)"
+        [ -n "$title" ] && ellipsize "$title" 34
+        ;;
+    artist)
+        IFS="$FIELD_SEP" read -r _ artist <<< "$(now_playing)"
+        [ -n "$artist" ] && ellipsize "$artist" 38
+        ;;
+    *)
+        echo "usage: ${0##*/} header|title|artist" >&2
+        exit 2
+        ;;
+esac
