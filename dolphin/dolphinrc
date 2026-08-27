@@ -1,0 +1,50 @@
+# Dolphin configuration — applied by scripts/apply-dolphin.
+#
+# Not symlinked: KDE writes config atomically (temp file + rename), which
+# replaces a symlink with a regular file the first time you change a setting
+# in the GUI. This file is the seed; apply-dolphin copies it into place.
+
+[General]
+BrowseThroughArchives=true
+ConfirmClosingMultipleTabs=false
+GlobalViewProps=false
+RememberOpenedTabs=true
+ShowFullPath=true
+ShowFullPathInTitlebar=true
+ShowSpaceInfo=true
+ShowToolTips=false
+SortingChoice=CaseInsensitiveSorting
+UseTabForSwitchingSplitView=true
+
+[DetailsMode]
+ExpandableFolders=true
+PreviewSize=32
+SidePadding=8
+
+[IconsMode]
+PreviewSize=80
+TextWidthIndex=2
+
+[CompactMode]
+PreviewSize=32
+
+[KFileDialog Settings]
+Places Icons Auto-resize=false
+Places Icons Static Size=22
+
+[MainWindow]
+MenuBar=Disabled
+ToolBarsMovable=Disabled
+
+# Thumbnails. The stock 3MB ceiling is why video and PDF previews appear
+# broken — most real files are larger than it, so Dolphin silently skips them.
+[PreviewSettings]
+MaximumSize=536870912
+MaximumRemoteSize=0
+Plugins=appimagethumbnail,audiothumbnail,blenderthumbnail,comicbookthumbnail,cursorthumbnail,djvuthumbnail,ebookthumbnail,exrthumbnail,directorythumbnail,fontthumbnail,imagethumbnail,jpegthumbnail,kraorathumbnail,windowsexethumbnail,windowsimagethumbnail,mobithumbnail,opendocumentthumbnail,gsthumbnail,rawthumbnail,svgthumbnail,textthumbnail,ffmpegthumbs
+
+[VersionControl]
+enabledPlugins=Git
+
+[Search]
+Location=Everywhere

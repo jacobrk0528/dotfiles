@@ -1,0 +1,31 @@
+#:schema https://yazi-rs.github.io/schemas/yazi.json
+
+[mgr]
+# parent | current | preview — Finder's column view, weighted so the preview
+# pane is the widest of the three.
+ratio          = [ 1, 3, 4 ]
+sort_by        = "alphabetical"
+sort_sensitive = false
+sort_dir_first = true
+linemode       = "size"
+show_hidden    = false
+show_symlink   = true
+scrolloff      = 5
+
+[preview]
+wrap          = "no"
+tab_size      = 4
+# Sized for the launcher window (70% of 1920x1080), whose preview pane is
+# roughly 670px wide; the shipped 600x900 default visibly softens images there.
+max_width     = 1000
+max_height    = 1400
+image_delay   = 30
+image_filter  = "lanczos3"
+image_quality = 90
+
+[opener]
+# Yazi is launched from Hyprland, not from a login shell, so $EDITOR is unset
+# and the shipped `${EDITOR:-vi}` opener would drop into vi.
+edit = [
+	{ run = 'nvim %s', desc = "nvim", block = true },
+]

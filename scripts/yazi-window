@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Yazi in its own ghostty window.
+#
+# Deliberately not inside tmux: tmux.conf sets no allow-passthrough, so the
+# Kitty graphics protocol never reaches ghostty and every image/PDF preview
+# degrades to a placeholder — and ghostty+tmux+yazi is known to crash on large
+# images. The distinct --class is what hyprland.lua's float/size rule matches.
+
+exec ghostty \
+	--class=com.jkrebs.yazi \
+	--title=yazi \
+	-e yazi "${1:-$HOME}"

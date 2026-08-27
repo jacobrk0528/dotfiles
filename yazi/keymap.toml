@@ -1,0 +1,4 @@
+#:schema https://yazi-rs.github.io/schemas/keymap.json
+
+# Shipped defaults are kept: `s` searches by name via fd, `S` searches contents
+# via ripgrep, `z` jumps via zoxide, `Z` jumps via fzf. All four are installed.
