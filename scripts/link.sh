@@ -30,6 +30,7 @@ link_file "nvim"        "$HOME/.config/nvim"
 link_file "ghostty"     "$HOME/.config/ghostty"
 link_file "gitconfig"   "$HOME/.gitconfig"
 link_file "sqlfluff"    "$HOME/.sqlfluff"
+link_file "yazi"        "$HOME/.config/yazi"
 link_file "tmux"        "$HOME/.tmux"
 link_file "tmux.conf"   "$HOME/.tmux.conf"
 link_file "zshrc"       "$HOME/.zshrc"
@@ -39,9 +40,10 @@ link_file "oh-my-zsh/jkrebs.zsh-theme"   "$HOME/.oh-my-zsh/custom/themes/jkrebs.
 # Linux-only (Wayland / Arch)
 if [[ "$(uname)" != "Darwin" ]]; then
     link_file "hypr"          "$HOME/.config/hypr"
-    link_file "waybar"        "$HOME/.config/waybar"
     link_file "fontconfig"    "$HOME/.config/fontconfig"
     link_file "mimeapps.list" "$HOME/.config/mimeapps.list"
+    link_file "quickshell"    "$HOME/.config/quickshell"
+    link_file "hypr/scripts/ptt-dictate/ptt-dictate.service" "$HOME/.config/systemd/user/ptt-dictate.service"
 fi
 
 echo "Dotfiles linking complete!"

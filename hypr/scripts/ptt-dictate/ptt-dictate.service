@@ -1,0 +1,11 @@
+[Unit]
+Description=Push-to-talk dictation daemon
+After=graphical-session.target
+
+[Service]
+EnvironmentFile=-%h/.config/ptt-dictate/secrets.env
+ExecStart=/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/venv/bin/python /home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/daemon.py
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
