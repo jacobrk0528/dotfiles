@@ -1,1 +1,0 @@
-sqlfluff_plugin_trinityroad

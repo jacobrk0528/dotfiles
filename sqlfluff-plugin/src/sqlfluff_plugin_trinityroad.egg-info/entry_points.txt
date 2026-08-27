@@ -1,2 +1,0 @@
-[sqlfluff]
-sqlfluff_plugin_trinityroad = sqlfluff_plugin_trinityroad.rules

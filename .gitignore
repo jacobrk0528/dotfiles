@@ -1,0 +1,24 @@
+# --- Python build & runtime artifacts ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+
+# --- Generated, reproducible output ---
+# Rebuilt from quickshell/theme.json by `quickshell/scripts/wallgen`.
+hypr/wallpapers/generated/
+
+# --- Local tool state (machine-specific, not config) ---
+**/.opencode/
+**/.claude/settings.local.json
+
+# --- Query scratch & exports ---
+scripts/ns_export/.last_query.sql
+scripts/ns_export/*.csv
+output.csv
+
+# --- Editor / OS noise ---
+*.swp
+*.swo
+.DS_Store
