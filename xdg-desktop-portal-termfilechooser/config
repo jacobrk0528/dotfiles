@@ -1,0 +1,6 @@
+[filechooser]
+cmd=yazi-wrapper.sh
+default_dir=$HOME
+; Opens the picker in yazi's usual floating ghostty window (see hypr/hyprland.lua's
+; yazi-float/size/center rules, matched on this --class).
+env=TERMCMD=ghostty --class=com.jkrebs.yazi --title=yazi -e

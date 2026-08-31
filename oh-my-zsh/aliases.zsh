@@ -44,7 +44,7 @@ alias clear_history='echo "" > ~/.zsh_history & exec $SHELL -l'
 alias docs="cd ~/Documents"
 alias downloads="cd ~/Downloads"
 alias tr="cd ~/Documents/TrinityRoad/local-git"
-alias personal="cd ~/Documents/Personal/local-git"
+alias personal="cd ~/Documents/Personal/"
 alias scripts="cd ~/Documents/TrinityRoad/scripts"
 
 # Python 3

@@ -42,6 +42,13 @@ Overlay {
             run: () => Quickshell.execDetached(["systemctl", "reboot"])
         },
         {
+            glyph: "󰒓",
+            label: "BIOS",
+            hint: "reboot to firmware",
+            color: Theme.accent,
+            run: () => Quickshell.execDetached(["systemctl", "reboot", "--firmware-setup"])
+        },
+        {
             glyph: "󰐥",
             label: "Shut down",
             hint: "systemctl poweroff",

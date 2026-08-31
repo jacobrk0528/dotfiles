@@ -55,6 +55,22 @@ Since some parts of a system cannot (or should not) be automated, follow this ch
 *   MariaDB is initialized with a passwordless user '$USER'.
 *   Redis is replaced by **Valkey** (Arch's default).
 
+## 🍎 macOS Notes
+
+quickshell, Hyprland, and everything under `hypr/` and `quickshell/` are Wayland-only and
+don't run on macOS — the desktop shell, bar, panels, and AI quick-ask widget stay Linux-only.
+What does carry over:
+*   **Wallpaper**: `hypr/wallpaper.json` and `hypr/wallpapers/` are tracked in git, so whichever
+    wallpaper is active on the Linux box comes along on `git pull`. `mac/setup.sh` calls
+    `mac/set-wallpaper.sh` to apply it via `osascript`; re-run that script manually after
+    switching wallpapers on Linux and pulling again.
+*   **Ghostty transparency**: `ghostty/config` is shared across platforms. `background-opacity`
+    already applies everywhere; `background-blur-radius` (macOS-only key, ignored on Linux) was
+    added so the terminal gets a native frosted-glass blur instead of a flat translucent panel,
+    since there's no compositor blurring it for us there.
+*   Everything else shared between platforms (`nvim`, `ghostty`, `tmux`, `zshrc`, `yazi`,
+    `oh-my-zsh`, `scripts/ntfy`, `gitconfig`, `sqlfluff`) is linked identically by `scripts/link.sh`.
+
 ## 🔐 Login Screen (greetd)
 
 Not enabled by default — login is still TTY + the `hyprland` alias until you turn it on.

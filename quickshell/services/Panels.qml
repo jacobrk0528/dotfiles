@@ -7,7 +7,7 @@ import QtQuick
 Singleton {
     id: root
 
-    // "" | "launcher" | "control" | "notifications" | "power" | "cheatsheet"
+    // "" | "launcher" | "control" | "notifications" | "power" | "cheatsheet" | "ai"
     property string open: ""
 
     readonly property bool anyOpen: open !== ""

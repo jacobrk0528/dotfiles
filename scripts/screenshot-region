@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Region screenshot via slurp+grim, bypassing hyprshot's region mode: hyprshot
+# (v1.3.0) uses `local geometry=$(grab_region)` internally, which masks
+# slurp's exit code under `set -e`, so cancelling the selection with Escape
+# still falls through to grim and saves/copies a screenshot anyway.
+set -euo pipefail
+
+clipboard_only=0
+output_dir="$HOME/Pictures"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --clipboard-only) clipboard_only=1; shift ;;
+        -o) output_dir="$2"; shift 2 ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+geometry=$(slurp) || exit 0
+
+if [[ "$clipboard_only" == "1" ]]; then
+    grim -g "$geometry" - | wl-copy --type image/png
+    notify-send "Screenshot saved" "Image copied to the clipboard" -a hyprshot
+else
+    mkdir -p "$output_dir"
+    file="$output_dir/$(date +%Y-%m-%d-%H%M%S)_hyprshot.png"
+    grim -g "$geometry" "$file"
+    wl-copy --type image/png < "$file"
+fi

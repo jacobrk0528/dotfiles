@@ -282,8 +282,36 @@ end
 local mainMod = "SUPER"
 
 -- Screenshots
-hl.bind("Home",             hl.dsp.exec_cmd("hyprshot -m region -s -o /home/jkrebs/Pictures"))
-hl.bind(mainMod .. " + Home", hl.dsp.exec_cmd("hyprshot -m region --clipboard-only"))
+hl.bind("Home",             hl.dsp.exec_cmd("/home/jkrebs/dotfiles/scripts/screenshot-region -o /home/jkrebs/Pictures"))
+hl.bind(mainMod .. " + Home", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/scripts/screenshot-region --clipboard-only"))
+
+-- SUPER+SHIFT+Home, then a workspace key, screenshots that workspace's whole
+-- monitor to the clipboard. Uses the same keys as the workspace/special binds
+-- below so it covers workspaces 1-10 and the special workspaces too.
+local function screenshot_workspace_clipboard(workspace)
+    return function()
+        local ws = hl.get_workspace(workspace)
+        if ws and ws.monitor then
+            hl.exec_cmd("hyprshot -m output -m " .. ws.monitor.name .. " --clipboard-only")
+        else
+            hl.notification.create({ text = "Workspace '" .. tostring(workspace) .. "' isn't visible on any monitor", timeout = 3000 })
+        end
+        hl.dispatch(hl.dsp.submap(""))
+    end
+end
+
+hl.define_submap("screenshot-workspace", function()
+    for i = 1, 10 do
+        local key = i % 10
+        hl.bind(tostring(key), screenshot_workspace_clipboard(i))
+    end
+    hl.bind("semicolon", screenshot_workspace_clipboard("special:logs"))
+    hl.bind("period",    screenshot_workspace_clipboard("special:slack"))
+    hl.bind("comma",     screenshot_workspace_clipboard("special:btop"))
+    hl.bind("Escape", hl.dsp.submap(""))
+end)
+
+hl.bind(mainMod .. " + SHIFT + Home", hl.dsp.submap("screenshot-workspace"))
 
 -- Apps
 hl.bind(mainMod .. " + T",     hl.dsp.exec_cmd(terminal))
@@ -305,6 +333,7 @@ hl.bind(mainMod .. " + C",         hl.dsp.global("quickshell:control"))
 hl.bind(mainMod .. " + slash",     hl.dsp.global("quickshell:cheatsheet"))
 hl.bind(mainMod .. " + Escape",    hl.dsp.global("quickshell:power"))
 hl.bind(mainMod .. " + W",         hl.dsp.global("quickshell:wallpapers"))
+hl.bind(mainMod .. " + A",         hl.dsp.global("quickshell:ai"))
 
 
 -- Audio keybinds

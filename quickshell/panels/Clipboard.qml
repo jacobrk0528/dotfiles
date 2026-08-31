@@ -73,7 +73,13 @@ Overlay {
         if (!entry)
             return;
         Panels.close();
-        copyProc.command = ["sh", "-c", "cliphist decode " + entry.id + " | wl-copy"];
+        // Text is forced to text/plain: wl-copy sniffs the content otherwise,
+        // and anything starting with "From " is detected as application/mbox —
+        // the clipboard then offers only that type and apps asking for
+        // text/plain (Slack) silently refuse to paste. Images still need
+        // detection, so they go through unforced.
+        const sink = entry.isImage ? "wl-copy" : "wl-copy --type text/plain";
+        copyProc.command = ["sh", "-c", "cliphist decode " + entry.id + " | " + sink];
         copyProc.running = true;
     }
 

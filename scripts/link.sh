@@ -34,6 +34,7 @@ link_file "yazi"        "$HOME/.config/yazi"
 link_file "tmux"        "$HOME/.tmux"
 link_file "tmux.conf"   "$HOME/.tmux.conf"
 link_file "zshrc"       "$HOME/.zshrc"
+link_file "scripts/ntfy" "$HOME/.local/bin/ntfy"
 link_file "oh-my-zsh/aliases.zsh"        "$HOME/.oh-my-zsh/custom/aliases.zsh"
 link_file "oh-my-zsh/jkrebs.zsh-theme"   "$HOME/.oh-my-zsh/custom/themes/jkrebs.zsh-theme"
 
@@ -44,6 +45,8 @@ if [[ "$(uname)" != "Darwin" ]]; then
     link_file "mimeapps.list" "$HOME/.config/mimeapps.list"
     link_file "quickshell"    "$HOME/.config/quickshell"
     link_file "hypr/scripts/ptt-dictate/ptt-dictate.service" "$HOME/.config/systemd/user/ptt-dictate.service"
+    link_file "xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
+    link_file "xdg-desktop-portal-termfilechooser/config" "$HOME/.config/xdg-desktop-portal-termfilechooser/config"
 fi
 
 echo "Dotfiles linking complete!"

@@ -39,6 +39,15 @@ PanelWindow {
             Layout.fillHeight: true
         }
 
+        Separator {
+            Layout.leftMargin: 8
+        }
+
+        MprisModule {
+            bar: bar
+            Layout.fillHeight: true
+        }
+
         DictationModule {
             bar: bar
             Layout.fillHeight: true
@@ -61,13 +70,6 @@ PanelWindow {
     Pill {
         anchors.right: parent.right
         height: parent.height
-
-        MprisModule {
-            bar: bar
-            Layout.fillHeight: true
-        }
-
-        Separator {}
 
         CpuModule {
             bar: bar

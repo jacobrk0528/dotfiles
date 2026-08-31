@@ -88,6 +88,10 @@ if [ ! -d "$HOME/Library/Android/sdk" ]; then
     echo "📱 Android SDK not found. Open Android Studio to complete SDK setup."
 fi
 
+# 10. Wallpaper — mirrors whatever's active on the Linux box (quickshell
+# itself doesn't run here; see mac/set-wallpaper.sh)
+"$DOTFILES_DIR/mac/set-wallpaper.sh" || echo "🖼️  Skipped wallpaper (run mac/set-wallpaper.sh manually later)"
+
 echo "✅ macOS setup complete!"
 echo "   - Run 'pecl install redis' to add PHP Redis extension"
 echo "   - Open Tailscale from Applications to connect to your network"

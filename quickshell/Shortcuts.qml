@@ -59,6 +59,13 @@ Scope {
 
     GlobalShortcut {
         appid: "quickshell"
+        name: "ai"
+        description: "Open the AI quick-ask widget"
+        onPressed: AiShot.captureThenOpen()
+    }
+
+    GlobalShortcut {
+        appid: "quickshell"
         name: "dismissNotifications"
         description: "Dismiss visible notification popups"
         onPressed: Notifs.clearPopups()

@@ -44,10 +44,25 @@ Everything stays in the center until dismissed. `SUPER+N` opens it; the bell tog
 do-not-disturb on right-click.
 
 **Control center** (`SUPER+C`, or click the volume module) — output device and volume, output
-switcher, per-app volume sliders with live peak meters, media transport with album art,
-network (wired status, Wi-Fi list and radio toggle) and Bluetooth (adapter power, paired
-devices with battery, connect/disconnect), plus quick toggles. Joining an unknown Wi-Fi
+switcher, per-app volume sliders with live peak meters, a media card per MPRIS player (same
+`desktop/MediaCard.qml` as the desktop widgets, so every player shows up, not just whichever
+one is playing — its stream is excluded from the per-app volume list to avoid a duplicate
+slider), network (wired status, Wi-Fi list and radio toggle) and Bluetooth (adapter power,
+paired devices with battery, connect/disconnect), plus quick toggles. Joining an unknown Wi-Fi
 network hands off to `nmtui-connect` since it needs a passphrase.
+
+**AI quick-ask** (`SUPER+A`) — type a question or an instruction, Enter runs it through the
+`claude` CLI headless (`claude -p`, this machine's Claude Code subscription login, not a
+separate API key) with Bash and WebSearch, so it can answer plainly or actually act ("open
+Chrome") and reports back in a sentence or two. One-shot, no session persistence. Before the
+panel opens, `services/AiShot.qml` grabs a silent `grim` screenshot of the focused monitor and
+only then opens it — done first so the capture is the real screen, not the blur Hyprland
+applies to this panel's layer (`hypr/hyprland.lua`, `quickshell-overlay` namespace) once it's
+mapped. That screenshot grants the Read tool for the ask, so you can ask about whatever's on
+screen — "󰄀 sees your screen" shows next to the input whenever a question will include it.
+The same box also sits on the desktop widget
+layer (`desktop/AiCard.qml`, bottom left) as its own independent `claude` process, without the
+screenshot — asking from one doesn't interrupt the other.
 
 **Launcher** (`SUPER+Space` or `SUPER+D`) — fuzzy search over desktop entries, ranked by name
 prefix → name substring → keywords. Arrows to move, Enter to launch.
@@ -69,12 +84,14 @@ shell watches. hyprpaper is not used — 0.8.4 refuses to bind a wallpaper to an
 this machine ("has no target"), and drawing it in-process removes a daemon and gets us the
 crossfade. `hypr/wallpaper.conf` is generated alongside so the lock screen matches.
 
-**Desktop widgets** — laid out across the top of every screen: system meters on the left,
-clock in the middle, media stack on the right. Each group sits on a translucent rounded panel
+**Desktop widgets** — laid out across every screen: system meters top left, clock top centre,
+media stack top right, AI quick-ask bottom left. Each group sits on a translucent rounded panel
 (`desktop/WidgetPanel.qml`, `widgetOpacity` in `theme.json`) that Hyprland blurs, so the text
 holds up over a bright wallpaper as well as a dark one; `ignore_alpha` keeps the blur on the
-panels rather than the empty space between them. Only the media controls take clicks; the rest
-is click-through.
+panels rather than the empty space between them. Only the media controls and the AI card take
+clicks (and, for the AI card's input, keyboard focus — the layer uses on-demand keyboard
+interactivity rather than none, so typing there doesn't require a hotkey); the rest is
+click-through.
 
 The widget layer sits on the **bottom** layer, not the background — the wallpaper owns
 background, and two surfaces on the same layer stack by creation order rather than by intent,

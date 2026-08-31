@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# ntfy — push a notification to the homelab ntfy server (phone + browser).
+#
+#   ntfy "message"                         -> topic "homelab"
+#   ntfy -t claude "message"               -> explicit topic
+#   ntfy -T "Title" -p high "message"      -> title, priority (min|low|default|high|urgent|1-5)
+#   ntfy -g "tag1,tag2" "message"          -> emoji tags (e.g. white_check_mark, warning, rotating_light)
+#   long_command; ntfy -c $? "build"       -> reports success/failure of the exit code
+#   echo "body" | ntfy                     -> body from stdin
+#
+# Server and default topic come from ~/.config/ntfy/env (NTFY_URL, NTFY_TOPIC), or env vars.
+set -euo pipefail
+[ -f "$HOME/.config/ntfy/env" ] && . "$HOME/.config/ntfy/env"
+: "${NTFY_URL:=http://ntfy.internal}"
+: "${NTFY_TOPIC:=homelab}"
+
+topic="$NTFY_TOPIC" title="" prio="" tags="" code=""
+while getopts "t:T:p:g:c:h" o; do
+  case $o in
+    t) topic=$OPTARG ;; T) title=$OPTARG ;; p) prio=$OPTARG ;; g) tags=$OPTARG ;; c) code=$OPTARG ;;
+    *) sed -n '2,12p' "$0"; exit 0 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+msg="$*"
+if [ -z "$msg" ] && [ ! -t 0 ]; then msg=$(cat); fi
+if [ -n "$code" ]; then
+  if [ "$code" = 0 ]; then msg="✅ ${msg:-done}"; tags=${tags:-white_check_mark}
+  else msg="❌ ${msg:-failed} (exit $code)"; tags=${tags:-x}; prio=${prio:-high}; fi
+fi
+[ -n "$msg" ] || { echo "ntfy: no message" >&2; exit 1; }
+
+args=(-fsS -o /dev/null -H "X-Hostname: ${HOSTNAME:-$(uname -n)}")
+[ -n "$title" ] && args+=(-H "Title: $title")
+[ -n "$prio" ]  && args+=(-H "Priority: $prio")
+[ -n "$tags" ]  && args+=(-H "Tags: $tags")
+curl "${args[@]}" -d "$msg" "$NTFY_URL/$topic"

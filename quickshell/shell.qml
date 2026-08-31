@@ -48,4 +48,5 @@ ShellRoot {
     Cheatsheet {}
     Clipboard {}
     Wallpapers {}
+    Ai {}
 }

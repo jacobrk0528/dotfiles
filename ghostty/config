@@ -11,8 +11,11 @@ window-padding-x = 4
 window-padding-y = 4
 
 # Hyprland blurs whatever shows through, so the desktop behind stays legible
-# rather than turning into noise under the text.
+# rather than turning into noise under the text. On macOS there's no
+# compositor doing that for us, so background-blur-radius asks Ghostty to
+# blur it itself (macOS-only key; harmless no-op on Linux).
 background-opacity = 0.85
+background-blur-radius = 20
 # with sensible defaults for all options. Users should only need to set
 # options that they want to change from the default.
 #

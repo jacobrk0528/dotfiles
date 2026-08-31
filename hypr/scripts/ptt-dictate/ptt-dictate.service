@@ -1,11 +1,24 @@
 [Unit]
 Description=Push-to-talk dictation daemon
 After=graphical-session.target
+# Keep retrying rather than latching into 'failed' and leaving the user
+# with silently dead dictation until they notice and restart by hand.
+StartLimitIntervalSec=120
+StartLimitBurst=10
 
 [Service]
+# Type=notify + WatchdogSec means systemd tracks whether the daemon is
+# actually *responsive*, not merely whether the process exists. The
+# daemon pings only while its main loop is still servicing signals, so a
+# wedged-but-running daemon (the historical silent failure: unit shows
+# 'active', every keypress does nothing) now gets restarted instead.
+Type=notify
+NotifyAccess=main
+WatchdogSec=60
 EnvironmentFile=-%h/.config/ptt-dictate/secrets.env
 ExecStart=/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/venv/bin/python /home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/daemon.py
-Restart=on-failure
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=graphical-session.target

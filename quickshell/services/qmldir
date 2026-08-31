@@ -9,3 +9,4 @@ singleton MediaOrder MediaOrder.qml
 singleton WindowLink WindowLink.qml
 singleton NowPlaying NowPlaying.qml
 singleton OverlayStack OverlayStack.qml
+singleton AiShot AiShot.qml

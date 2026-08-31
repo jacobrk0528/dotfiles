@@ -7,6 +7,7 @@ import QtQuick.Layouts
 import ".."
 import "../components"
 import "../services"
+import "../desktop"
 
 // Audio mixer, media controls and session actions.
 // Replaces the rofi audio_mixer_menu / cycle_sink scripts.
@@ -17,12 +18,15 @@ Overlay {
     contentAlign: Qt.AlignTop | Qt.AlignRight
 
     readonly property PwNode sink: Pipewire.defaultAudioSink
-    readonly property var streams: Pipewire.nodes.values.filter(n => n.isStream && n.audio && n.type === PwNodeType.AudioOutStream)
+    // First-seen order, same as the desktop media stack, so every player
+    // shows up here rather than just whichever one is playing.
+    readonly property var players: MediaOrder.players
+    // Streams already surfaced as a media card (e.g. the Chrome tab behind a
+    // player) get their own transport + volume there, so drop them here to
+    // avoid showing the same app's volume slider twice.
+    readonly property var playerStreams: root.players.map(p => AudioLink.streamFor(p)).filter(s => s !== null)
+    readonly property var streams: Pipewire.nodes.values.filter(n => n.isStream && n.audio && n.type === PwNodeType.AudioOutStream && !root.playerStreams.includes(n))
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.isSink && !n.isStream && n.audio)
-    readonly property MprisPlayer player: {
-        const ps = MediaOrder.players;
-        return ps.find(p => p.isPlaying) ?? ps[0] ?? null;
-    }
 
     property bool showSinkPicker: false
 
@@ -258,108 +262,25 @@ Overlay {
                 Layout.fillWidth: true
                 implicitHeight: 1
                 color: Theme.separator
-                visible: root.player !== null
+                visible: root.players.length > 0
             }
 
             // ── Media ────────────────────────────────────────────
-            RowLayout {
+            // Same MediaCard used on the desktop widget stack, and the same
+            // first-seen ordering, so every player shows up here instead of
+            // just whichever one happens to be playing.
+            ColumnLayout {
                 Layout.fillWidth: true
-                spacing: Theme.spacingM
-                visible: root.player !== null
+                spacing: Theme.spacingL
+                visible: root.players.length > 0
 
-                ClippingRectangle {
-                    implicitWidth: 52
-                    implicitHeight: 52
-                    radius: 8
-                    color: Theme.raised
+                Repeater {
+                    model: root.players
 
-                    Image {
-                        anchors.fill: parent
-                        fillMode: Image.PreserveAspectCrop
-                        source: root.player?.trackArtUrl ?? ""
-                        asynchronous: true
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        visible: !root.player?.trackArtUrl
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 20
-                        color: Theme.textDim
-                        text: "󰎈"
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-
-                    Text {
+                    MediaCard {
+                        required property var modelData
                         Layout.fillWidth: true
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        color: Theme.textPrimary
-                        elide: Text.ElideRight
-                        text: root.player?.trackTitle ?? ""
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize - 2
-                        color: Theme.textDim
-                        elide: Text.ElideRight
-                        text: root.player?.trackArtist ?? ""
-                    }
-
-                    RowLayout {
-                        Layout.topMargin: 2
-                        spacing: Theme.spacingS
-
-                        IconButton {
-                            glyph: "󰒮"
-                            size: 22
-                            enabled: root.player?.canGoPrevious ?? false
-                            opacity: enabled ? 1 : 0.35
-                            onClicked: root.player.previous()
-                        }
-
-                        IconButton {
-                            glyph: root.player?.isPlaying ? "󰏤" : "󰐊"
-                            size: 22
-                            glyphSize: Theme.fontSize + 2
-                            glyphColor: Theme.accent
-                            onClicked: root.player.togglePlaying()
-                        }
-
-                        IconButton {
-                            glyph: "󰒭"
-                            size: 22
-                            enabled: root.player?.canGoNext ?? false
-                            opacity: enabled ? 1 : 0.35
-                            onClicked: root.player.next()
-                        }
-
-                        Item {
-                            Layout.fillWidth: true
-                        }
-
-                        Text {
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize - 2
-                            color: Theme.textDim
-                            visible: root.player?.lengthSupported ?? false
-                            text: {
-                                const fmt = s => {
-                                    const m = Math.floor(s / 60);
-                                    const sec = Math.floor(s % 60);
-                                    return m + ":" + (sec < 10 ? "0" : "") + sec;
-                                };
-                                if (!root.player)
-                                    return "";
-                                return fmt(root.player.position) + " / " + fmt(root.player.length);
-                            }
-                        }
+                        player: modelData
                     }
                 }
             }
