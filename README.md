@@ -41,6 +41,7 @@ Since some parts of a system cannot (or should not) be automated, follow this ch
 *   **NetSuite ODBC**: Manually copy or install the drivers into `/opt/netsuite/odbcclient`.
 *   **Netsuite Password**: Verify the `netsuite` alias in `oh-my-zsh/aliases.zsh`.
 *   **Tailscale**: If you use tailscale IPs (e.g., for 'desktop'), install it with `sudo pacman -S tailscale` and run `sudo tailscale up`.
+*   **macOS keyboard remap (Karabiner)**: `mac/setup.sh` installs Karabiner-Elements, but you must open it once and approve its driver/background item under System Settings > Privacy & Security yourself (may require a reboot). Also leave System Settings > Keyboard > Keyboard Shortcuts > Modifier Keys on defaults for all keyboards — Karabiner owns the remapping and the two will fight if both are active. See `mac/karabiner/karabiner.json` for the mapping. Karabiner does an atomic save whenever you change anything in its GUI, which replaces `~/.config/karabiner/karabiner.json`'s symlink with a plain file — after any GUI tweak, re-sync it into the repo: `cp ~/.config/karabiner/karabiner.json ~/dotfiles/mac/karabiner/karabiner.json && ln -sfn ~/dotfiles/mac/karabiner/karabiner.json ~/.config/karabiner/karabiner.json`.
 
 ### 4. Application Auth
 *   **Supermaven**: Re-authenticate in Neovim/Terminal.
@@ -65,3 +66,4 @@ Since some parts of a system cannot (or should not) be automated, follow this ch
 *   `nixos/`: NixOS configuration modules and flakes.
 *   `mimeapps.list`: Default application associations.
 *   `gitconfig`: Global Git configuration.
+*   `mac/karabiner/`: Karabiner-Elements config that makes the Mac keyboard behave like Linux (Ctrl↔Cmd, Cmd↔Option, Caps Lock→Ctrl). macOS-only.

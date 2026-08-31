@@ -44,4 +44,9 @@ if [[ "$(uname)" != "Darwin" ]]; then
     link_file "mimeapps.list" "$HOME/.config/mimeapps.list"
 fi
 
+# macOS-only
+if [[ "$(uname)" == "Darwin" ]]; then
+    link_file "mac/karabiner/karabiner.json" "$HOME/.config/karabiner/karabiner.json"
+fi
+
 echo "Dotfiles linking complete!"
