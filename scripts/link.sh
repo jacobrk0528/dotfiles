@@ -49,4 +49,9 @@ if [[ "$(uname)" != "Darwin" ]]; then
     link_file "xdg-desktop-portal-termfilechooser/config" "$HOME/.config/xdg-desktop-portal-termfilechooser/config"
 fi
 
+# macOS-only
+if [[ "$(uname)" == "Darwin" ]]; then
+    link_file "mac/karabiner/karabiner.json" "$HOME/.config/karabiner/karabiner.json"
+fi
+
 echo "Dotfiles linking complete!"
