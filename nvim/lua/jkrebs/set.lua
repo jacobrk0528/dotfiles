@@ -3,7 +3,11 @@ vim.opt.relativenumber = true
 vim.opt.cursorline = true
 vim.opt.scrolloff = 20
 vim.opt.sidescrolloff = 8
-vim.opt.wrap = false
+vim.opt.wrap = true
+vim.opt.linebreak = true
+vim.opt.breakindent = true
+vim.opt.breakindentopt = "shift:2,sbr"
+vim.opt.showbreak = "↳ "
 vim.opt.cmdheight = 1
 vim.opt.spelllang = { "en" }
 
@@ -57,5 +61,12 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.bo.tabstop = 4
     vim.bo.shiftwidth = 4
     vim.bo.expandtab = true
+  end,
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "csv", "tsv" },
+  callback = function()
+    vim.wo.wrap = false
   end,
 })
