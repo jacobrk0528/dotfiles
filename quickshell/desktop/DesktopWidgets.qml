@@ -6,8 +6,8 @@ import ".."
 import "../services"
 
 // Wallpaper-layer widgets across the top of the screen: system meters on the
-// left, clock in the middle, media stack on the right. Sits above the
-// wallpaper and below every window.
+// left, clock in the middle, media stack on the right. Lights widget sits
+// bottom-left. Sits above the wallpaper and below every window.
 PanelWindow {
     id: root
 
@@ -30,9 +30,15 @@ PanelWindow {
     WlrLayershell.namespace: "quickshell-desktop"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-    // Only the media controls take clicks; everything else is click-through.
+    // Only the media controls and the lights widget take clicks; everything
+    // else is click-through.
     mask: Region {
-        item: mediaColumn
+        Region {
+            item: mediaColumn
+        }
+        Region {
+            item: lightsWidget
+        }
     }
 
     // First-seen order, not sorted by playback state: a card must not move out
@@ -72,7 +78,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
-                color: Theme.alpha("#ffffff", 0.35)
+                color: Theme.alpha(Theme.text, 0.35)
                 text: "· up " + SysInfo.uptime
             }
         }
@@ -80,7 +86,7 @@ PanelWindow {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 1
-            color: Theme.alpha("#ffffff", 0.12)
+            color: Theme.alpha(Theme.text, 0.12)
         }
 
         StatRow {
@@ -129,6 +135,88 @@ PanelWindow {
         }
     }
 
+    // ── Lights, bottom left ──────────────────────────────────────
+    // Click a row to toggle that group. State comes from services/HALights,
+    // shared with the SUPER+Y popup panel.
+    WidgetPanel {
+        id: lightsWidget
+
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 48
+        anchors.bottomMargin: 48
+
+        width: 200
+
+        Text {
+            Layout.fillWidth: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            font.bold: true
+            color: Theme.accent
+            text: "Home"
+        }
+
+        Repeater {
+            model: HALights.groups
+
+            ColumnLayout {
+                id: rowWrapper
+                required property var modelData
+                required property int index
+
+                readonly property bool isNewSection: index === 0 || HALights.groups[index - 1].section !== modelData.section
+
+                Layout.fillWidth: true
+                spacing: Theme.spacingS
+
+                Text {
+                    visible: rowWrapper.isNewSection
+                    Layout.fillWidth: true
+                    Layout.topMargin: rowWrapper.index === 0 ? 0 : Theme.spacingS
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize - 3
+                    color: Theme.alpha(Theme.text, 0.45)
+                    text: rowWrapper.modelData.section
+                }
+
+                MouseArea {
+                    id: rowDelegate
+                    property var modelData: rowWrapper.modelData
+                    readonly property string lightState: HALights.groupStates[modelData.group] ?? ""
+
+                    Layout.fillWidth: true
+                    implicitHeight: rowContent.implicitHeight
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: HALights.run("toggle", modelData.group)
+
+                    RowLayout {
+                        id: rowContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        spacing: Theme.spacingS
+
+                        Rectangle {
+                            width: 8
+                            height: 8
+                            radius: 4
+                            color: rowDelegate.lightState === "on" ? Theme.yellow : Theme.alpha(Theme.text, 0.25)
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize - 1
+                            color: rowDelegate.containsMouse ? Theme.alpha(Theme.text, 0.92) : Theme.alpha(Theme.text, 0.55)
+                            text: rowDelegate.modelData.label
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // ── Clock, top centre ────────────────────────────────────────
     WidgetPanel {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -143,7 +231,7 @@ PanelWindow {
             font.family: Theme.fontFamily
             font.pixelSize: 92
             font.weight: Font.Light
-            color: Theme.alpha("#ffffff", 0.92)
+            color: Theme.alpha(Theme.text, 0.92)
             text: Qt.formatDateTime(clock.date, "HH:mm")
         }
 
@@ -151,7 +239,7 @@ PanelWindow {
             Layout.alignment: Qt.AlignHCenter
             font.family: Theme.fontFamily
             font.pixelSize: 17
-            color: Theme.alpha("#ffffff", 0.55)
+            color: Theme.alpha(Theme.text, 0.55)
             text: Qt.formatDate(clock.date, "dddd, MMMM d")
         }
     }

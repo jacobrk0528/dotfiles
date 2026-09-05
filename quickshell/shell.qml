@@ -40,6 +40,8 @@ ShellRoot {
 
     NowPlayingOsd {}
 
+    WindowMinimizeButtons {}
+
     // Panels
     NotificationCenter {}
     Launcher {}
@@ -49,4 +51,5 @@ ShellRoot {
     Clipboard {}
     Wallpapers {}
     Ai {}
+    HomeAssistant {}
 }

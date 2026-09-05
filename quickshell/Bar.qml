@@ -39,6 +39,10 @@ PanelWindow {
             Layout.fillHeight: true
         }
 
+        MinimizedIndicator {
+            Layout.fillHeight: true
+        }
+
         Separator {
             Layout.leftMargin: 8
         }

@@ -66,6 +66,13 @@ Scope {
 
     GlobalShortcut {
         appid: "quickshell"
+        name: "homeassistant"
+        description: "Open light controls"
+        onPressed: Panels.toggle("homeassistant")
+    }
+
+    GlobalShortcut {
+        appid: "quickshell"
         name: "dismissNotifications"
         description: "Dismiss visible notification popups"
         onPressed: Notifs.clearPopups()

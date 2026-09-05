@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# ha-lights — control Home Assistant lights (and the TV) from the CLI /
+# quickshell widget.
+#
+#   ha-lights on|off|toggle all
+#   ha-lights on|off|toggle kitchen
+#   ha-lights on|off|toggle living_room
+#   ha-lights on|off|toggle bedroom
+#   ha-lights on|off|toggle bathroom
+#   ha-lights on|off|toggle tv
+#   ha-lights color all|kitchen|living_room|bedroom|bathroom <r> <g> <b>
+#
+# See ha-lights-common for the token/URL, entity lists, and domain mapping
+# (shared with ha-lights-status).
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck disable=SC1091
+source ./ha-lights-common
+
+usage() {
+  echo "usage: ha-lights <on|off|toggle> <all|kitchen|living_room|bedroom|bathroom|tv>" >&2
+  echo "       ha-lights color <all|kitchen|living_room|bedroom|bathroom> <r> <g> <b>" >&2
+  exit 1
+}
+
+action="${1:-}"; group="${2:-}"
+[ -n "$action" ] && [ -n "$group" ] || usage
+
+case "$group" in
+  all) entity_json='"all"' ;;
+  kitchen) entity_json="$KITCHEN_ENTITIES" ;;
+  living_room) entity_json="$LIVING_ROOM_ENTITIES" ;;
+  bedroom) entity_json="$BEDROOM_ENTITIES" ;;
+  bathroom) entity_json="$BATHROOM_ENTITIES" ;;
+  tv) entity_json="\"$TV_ENTITY\"" ;;
+  *) usage ;;
+esac
+
+domain=$(domain_for_group "$group")
+
+if [ "$action" = "color" ]; then
+  [ "$domain" = "light" ] || { echo "ha-lights: color only applies to light groups" >&2; exit 1; }
+  r="${3:-}"; g="${4:-}"; b="${5:-}"
+  [ -n "$r" ] && [ -n "$g" ] && [ -n "$b" ] || usage
+  curl -sf -X POST \
+    -H "Authorization: Bearer $HA_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"entity_id\": $entity_json, \"rgb_color\": [$r, $g, $b]}" \
+    "$HA_URL/api/services/light/turn_on" >/dev/null
+  exit 0
+fi
+
+case "$action" in
+  on) service=turn_on ;;
+  off) service=turn_off ;;
+  toggle) service=toggle ;;
+  *) usage ;;
+esac
+
+curl -sf -X POST \
+  -H "Authorization: Bearer $HA_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"entity_id\": $entity_json}" \
+  "$HA_URL/api/services/$domain/$service" >/dev/null

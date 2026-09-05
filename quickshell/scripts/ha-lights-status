@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# ha-lights-status — report on/off/mixed state per light group as JSON, for
+# the quickshell widget to color its buttons.
+#
+#   {"all":"on","kitchen":"off","living_room":"mixed","bedroom":"off","bathroom":"off","tv":"on"}
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck disable=SC1091
+source ./ha-lights-common
+
+states_json=$(curl -sf -H "Authorization: Bearer $HA_TOKEN" "$HA_URL/api/states")
+
+# Unreachable lights (switched off at the wall, so Matter can't see them)
+# report "unavailable"/"unknown" rather than "off". Exclude them from the
+# on/off/mixed tally entirely so a disconnected bedroom or bathroom doesn't
+# drag the whole group (or "all") into a permanent "mixed" state.
+group_state() {
+  local ids="$1"
+  jq -r --argjson ids "$ids" '
+    [.[] | select(.entity_id as $e | $ids | index($e)) | select(.state != "unavailable" and .state != "unknown") | .state] as $s
+    | if ($s | length) == 0 then "off"
+      elif (($s | unique | length) == 1) then $s[0]
+      else "mixed" end
+  ' <<< "$states_json"
+}
+
+all_state=$(jq -r '
+  [.[] | select(.entity_id | startswith("light.")) | select(.state != "unavailable" and .state != "unknown") | .state] as $s
+  | if ($s | length) == 0 then "off"
+    elif (($s | unique | length) == 1) then $s[0]
+    else "mixed" end
+' <<< "$states_json")
+
+# media_player states aren't just on/off (playing, paused, idle, standby,
+# unavailable...) — collapse anything but a real "on"-ish state to "off" so
+# the widget's two-button highlight still makes sense.
+tv_raw=$(jq -r --arg id "$TV_ENTITY" '.[] | select(.entity_id == $id) | .state' <<< "$states_json")
+case "$tv_raw" in
+  off|unavailable|unknown|"") tv_state="off" ;;
+  *) tv_state="on" ;;
+esac
+
+jq -n \
+  --arg all "$all_state" \
+  --arg kitchen "$(group_state "$KITCHEN_ENTITIES")" \
+  --arg living_room "$(group_state "$LIVING_ROOM_ENTITIES")" \
+  --arg bedroom "$(group_state "$BEDROOM_ENTITIES")" \
+  --arg bathroom "$(group_state "$BATHROOM_ENTITIES")" \
+  --arg tv "$tv_state" \
+  '{all: $all, kitchen: $kitchen, living_room: $living_room, bedroom: $bedroom, bathroom: $bathroom, tv: $tv}'

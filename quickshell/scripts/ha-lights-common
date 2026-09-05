@@ -1,0 +1,20 @@
+# Shared by ha-lights and ha-lights-status. Source, don't execute.
+HA_URL="${HA_URL:-http://192.168.1.109:8123}"
+TOKEN_FILE="$HOME/.config/homeassistant/token"
+[ -f "$TOKEN_FILE" ] || { echo "ha-lights: no token at $TOKEN_FILE" >&2; exit 1; }
+HA_TOKEN="$(cat "$TOKEN_FILE")"
+
+KITCHEN_ENTITIES='["light.kitchen_island_1","light.kitchen_island_middle","light.kitchen_island_3","light.kitchen_kitchen_1","light.kitchen_kitchen_2"]'
+LIVING_ROOM_ENTITIES='["light.living_room_lamp"]'
+BEDROOM_ENTITIES='["light.bedroom_bedroom_1","light.bedroom_bedroom_2","light.bedroom_bedroom_3","light.bedroom_bedroom_4"]'
+BATHROOM_ENTITIES='["light.bathroom_bathroom_1","light.bathroom_bathroom_2"]'
+TV_ENTITY="media_player.living_room_tv"
+
+# group -> HA service domain, for building the /api/services/<domain>/...
+# URL. Everything except tv is the light domain.
+domain_for_group() {
+  case "$1" in
+    tv) echo "media_player" ;;
+    *) echo "light" ;;
+  esac
+}

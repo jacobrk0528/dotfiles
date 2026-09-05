@@ -10,3 +10,4 @@ singleton WindowLink WindowLink.qml
 singleton NowPlaying NowPlaying.qml
 singleton OverlayStack OverlayStack.qml
 singleton AiShot AiShot.qml
+singleton HALights HALights.qml
