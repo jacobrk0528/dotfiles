@@ -42,13 +42,25 @@ else
     echo "📡 Tailscale already installed, skipping."
 fi
 
-# 4. Enable Services
+# 4. Homelab CA cert — trusts self-signed certs served by internal
+# services (e.g. home.internal). Fetched insecurely since, on a fresh
+# machine, nothing trusts it yet; that's expected for a first bootstrap.
+echo "🔒 Installing homelab CA certificate..."
+CERT_TMP="$(mktemp -t homelabCA).crt"
+if curl -fsSk https://home.internal/homelabCA.crt -o "$CERT_TMP"; then
+    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$CERT_TMP"
+else
+    echo "   Couldn't reach home.internal (not on the home network?) — skipping."
+fi
+rm -f "$CERT_TMP"
+
+# 5. Enable Services
 echo "⚙️  Starting services..."
 brew services start postgresql@17
 brew services start mariadb
 brew services start valkey
 
-# 5. PostgreSQL Setup
+# 6. PostgreSQL Setup
 if ! psql -U "$USER" -c '\q' &> /dev/null 2>&1; then
     echo "🐘 Setting up PostgreSQL user and database..."
     sleep 2
@@ -58,14 +70,14 @@ if ! psql -U "$USER" -c '\q' &> /dev/null 2>&1; then
     psql -d "tomBombadil_local" -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
 fi
 
-# 6. MariaDB Setup
+# 7. MariaDB Setup
 if ! mariadb -u root -e '\q' &> /dev/null 2>&1; then
     echo "🗄️  Setting up MariaDB user '$USER'..."
     sleep 2
     sudo mariadb -e "CREATE USER IF NOT EXISTS '$USER'@'localhost' IDENTIFIED BY ''; GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' WITH GRANT OPTION; FLUSH PRIVILEGES;"
 fi
 
-# 7. Oh My Zsh
+# 8. Oh My Zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     echo "🐚 Installing Oh My Zsh..."
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
@@ -77,15 +89,10 @@ if [ "$SHELL" != "$(which zsh)" ]; then
     chsh -s "$(which zsh)"
 fi
 
-# 8. Claude Code CLI
+# 9. Claude Code CLI
 if ! command -v claude &> /dev/null; then
     echo "🤖 Installing Claude Code CLI..."
     curl -fsSL https://claude.ai/install.sh | bash
-fi
-
-# 9. Android SDK
-if [ ! -d "$HOME/Library/Android/sdk" ]; then
-    echo "📱 Android SDK not found. Open Android Studio to complete SDK setup."
 fi
 
 # 10. Wallpaper — mirrors whatever's active on the Linux box (quickshell
@@ -95,7 +102,3 @@ fi
 echo "✅ macOS setup complete!"
 echo "   - Run 'pecl install redis' to add PHP Redis extension"
 echo "   - Open Tailscale from Applications to connect to your network"
-echo "   - Open Android Studio to finish Flutter/Android SDK setup"
-echo "   - Open Karabiner-Elements once, then approve its driver/background"
-echo "     items in System Settings > Privacy & Security (may need a reboot)"
-echo "     to enable the Linux-style keyboard remapping."

@@ -47,11 +47,7 @@ if [[ "$(uname)" != "Darwin" ]]; then
     link_file "hypr/scripts/ptt-dictate/ptt-dictate.service" "$HOME/.config/systemd/user/ptt-dictate.service"
     link_file "xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
     link_file "xdg-desktop-portal-termfilechooser/config" "$HOME/.config/xdg-desktop-portal-termfilechooser/config"
-fi
-
-# macOS-only
-if [[ "$(uname)" == "Darwin" ]]; then
-    link_file "mac/karabiner/karabiner.json" "$HOME/.config/karabiner/karabiner.json"
+    link_file "dolphin/kdeglobals" "$HOME/.config/kdeglobals"
 fi
 
 echo "Dotfiles linking complete!"

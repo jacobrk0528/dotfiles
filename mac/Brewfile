@@ -1,5 +1,6 @@
 # --- Taps ---
 tap "microsoft/mssql-release"
+tap "manaflow-ai/cmux"
 
 # --- CLI Tools ---
 brew "bind"
@@ -14,13 +15,11 @@ brew "freetds"
 brew "fzf"
 brew "git"
 brew "go"
-brew "htop"
 brew "jq"
 brew "lsof"
 brew "mariadb"
 brew "neovim"
 brew "nmap"
-brew "node"
 brew "pgvector"
 brew "php"
 brew "postgresql@17"
@@ -46,22 +45,16 @@ brew "mssql-tools18"
 # PHP extensions (install via pecl after: pecl install redis)
 
 # --- Applications ---
-cask "android-platform-tools"
-cask "android-studio"
-cask "chromium"
-cask "firefox"
+cask "brave-browser"
+cask "cmux"
 cask "ghostty"
-cask "gimp"
-cask "google-chrome"
 cask "gcloud-cli"
-cask "karabiner-elements"
 cask "obs"
 cask "obsidian"
 cask "pgadmin4"
 cask "postman"
 cask "slack"
 cask "tradingview"
-cask "zen"
 
 # --- Fonts ---
 cask "font-jetbrains-mono-nerd-font"
