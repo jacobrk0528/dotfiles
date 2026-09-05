@@ -14,7 +14,7 @@ window-padding-y = 6
 # rather than turning into noise under the text. On macOS there's no
 # compositor doing that for us, so background-blur-radius asks Ghostty to
 # blur it itself (macOS-only key; harmless no-op on Linux).
-background-opacity = 0.85
+background-opacity = 0.75
 background-blur-radius = 20
 
 # The physical Cmd key is remapped to Option at the OS level (Karabiner),

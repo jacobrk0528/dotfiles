@@ -81,7 +81,7 @@ PanelWindow {
                 implicitWidth: 56
                 implicitHeight: 56
                 radius: 8
-                color: Theme.alpha("#ffffff", 0.08)
+                color: Theme.alpha(Theme.text, 0.08)
 
                 Image {
                     id: art
@@ -111,7 +111,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize + 1
-                    color: Theme.alpha("#ffffff", 0.9)
+                    color: Theme.alpha(Theme.text, 0.9)
                     elide: Text.ElideRight
                     text: NowPlaying.title
                 }
@@ -121,7 +121,7 @@ PanelWindow {
                     visible: text !== ""
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize - 1
-                    color: Theme.alpha("#ffffff", 0.55)
+                    color: Theme.alpha(Theme.text, 0.55)
                     elide: Text.ElideRight
                     text: NowPlaying.artist
                 }

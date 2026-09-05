@@ -55,7 +55,7 @@ Item {
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     text: wsButton.modelData.name
-                    color: wsButton.modelData.urgent ? "#ffffff"
+                    color: wsButton.modelData.urgent ? Theme.text
                          : wsButton.modelData.active ? Theme.wsActiveFg
                          : wsMouse.containsMouse ? Theme.wsHoverFg
                          : Theme.textDim

@@ -8,6 +8,13 @@
 # The shell draws the wallpaper itself (see desktop/Wallpaper.qml) and picks
 # this file up live, so applying is just a write. hyprlock reads the generated
 # include so the lock screen always matches the desktop.
+#
+# Each wallpaper carries its own theme in quickshell/themes/<stem>.json. The
+# first time a wallpaper is applied, extract-theme generates one from its
+# dominant colours and saves it there; after that the saved theme is reused
+# every time, so hand-tweaks in theme.json for that wallpaper stick around.
+# Switching wallpapers writes theme.json and reruns apply-theme, so the whole
+# desktop follows.
 
 set -euo pipefail
 
@@ -15,6 +22,8 @@ DOTS="$HOME/dotfiles"
 WALLS="$DOTS/hypr/wallpapers"
 STATE="$DOTS/hypr/wallpaper.json"
 LOCK_INC="$DOTS/hypr/wallpaper.conf"
+THEMES="$DOTS/quickshell/themes"
+THEME="$DOTS/quickshell/theme.json"
 
 case "${1:-}" in
     --list)
@@ -30,17 +39,58 @@ esac
 WALL="$(readlink -f "$1")"
 [ -f "$WALL" ] || { echo "no such wallpaper: $1" >&2; exit 1; }
 
-python3 - "$WALL" "$STATE" <<'PY'
-import json, sys
-wall, state = sys.argv[1], sys.argv[2]
-with open(state, "w") as f:
-    json.dump({"path": wall}, f, indent=2)
+mkdir -p "$THEMES"
+STEM="$(basename "$WALL")"
+STEM="${STEM%.*}"
+WALL_THEME="$THEMES/$STEM.json"
+
+# Persist any hand-edits made to theme.json while the outgoing wallpaper was
+# active, so they aren't lost the next time it's applied.
+PREV_WALL="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['path'])" "$STATE" 2>/dev/null || true)"
+if [ -n "$PREV_WALL" ] && [ "$PREV_WALL" != "$WALL" ]; then
+    PREV_STEM="$(basename "$PREV_WALL")"
+    PREV_STEM="${PREV_STEM%.*}"
+    [ -f "$THEME" ] && cp "$THEME" "$THEMES/$PREV_STEM.json"
+fi
+
+if [ -f "$WALL_THEME" ]; then
+    cp "$WALL_THEME" "$THEME"
+else
+    echo "no theme for $STEM yet — extracting one from the wallpaper" >&2
+    EXTRACT="$DOTS/quickshell/scripts/extract-theme"
+    python3 - "$EXTRACT" "$WALL" "$THEME" "$WALL_THEME" <<'PY'
+import json, subprocess, sys
+extract, wall, theme_path, out_path = sys.argv[1:5]
+
+extracted = json.loads(subprocess.check_output([extract, wall]))
+try:
+    with open(theme_path) as f:
+        current = json.load(f)
+except (OSError, ValueError):
+    current = {}
+
+merged = {**current, **extracted}
+with open(out_path, "w") as f:
+    json.dump(merged, f, indent=2)
+    f.write("\n")
+with open(theme_path, "w") as f:
+    json.dump(merged, f, indent=2)
     f.write("\n")
 PY
+fi
+
+python3 -c "
+import json, sys
+with open(sys.argv[1], 'w') as f:
+    json.dump({'path': sys.argv[2]}, f, indent=2)
+    f.write('\n')
+" "$STATE" "$WALL"
 
 cat > "$LOCK_INC" <<EOF
 # Written by quickshell/scripts/wallpaper — the lock screen background.
 \$wallpaper = $WALL
 EOF
+
+"$DOTS/quickshell/scripts/apply-theme" >&2
 
 echo "$WALL"

@@ -38,6 +38,12 @@ def mix(a, b, ratio):
     return ",".join(str(int(round(x + (y - x) * ratio))) for x, y in zip(ca, cb))
 
 
+def hex_mix(a, b, ratio):
+    """Blend two #rrggbb colours; ratio is how much of b to take."""
+    parts = mix(rgb(a), rgb(b), ratio).split(",")
+    return "#" + "".join(f"{int(v):02x}" for v in parts)
+
+
 def write(path, content):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     previous = None
@@ -348,6 +354,55 @@ rules = [
 """
 
 
+def nvim_colors(t):
+    """Palette table for the rose-pine-derived colorscheme.
+
+    custom-rose.lua names its variables after Rose Pine's own palette; this
+    maps theme.json's roles onto those names so the editor tracks the shell.
+    """
+    pine = hex_mix(t["accent"], t["base"], 0.30)
+
+    return BANNER.replace("#", "--") + f"""return {{
+    bg_deep = "{t["base"]}",
+    bg_surface = "{t["surface"]}",
+    bg_overlay = "{hex_mix(t["surface"], t["text"], 0.06)}",
+    bg_inactive = "{hex_mix(t["surface"], t["text"], 0.09)}",
+    fg_main = "{t["text"]}",
+    fg_muted = "{t["gray"]}",
+    fg_subtle = "{hex_mix(t["gray"], t["base"], 0.35)}",
+
+    rose = "{t["pink"]}",
+    pine = "{pine}",
+    love = "{t["red"]}",
+    foam = "{t["accent"]}",
+    gold = "{t["yellow"]}",
+    iris = "{t["purple"]}",
+    subtle_iris = "{hex_mix(t["purple"], t["base"], 0.25)}",
+
+    deep_pine = "{hex_mix(pine, t["base"], 0.25)}",
+    vintage_rose = "{hex_mix(t["pink"], t["text"], 0.30)}",
+    faded_gold = "{hex_mix(t["yellow"], t["gray"], 0.30)}",
+    muted_green = "{hex_mix(t["green"], t["gray"], 0.20)}",
+}}
+"""
+
+
+def tmux(t):
+    """Status bar and border colours; layout stays in tmux.conf."""
+    border = hex_mix(t["base"], t["text"], 0.12)
+
+    return BANNER + f"""
+set -g @theme_accent "{t["accent"]}"
+set -g @theme_gray "{t["gray"]}"
+
+set -g status-style "bg={t["base"]},fg={t["accent"]}"
+set -g pane-border-style "fg={border}"
+set -g pane-active-border-style "fg={t["accent"]}"
+set -g window-status-current-style "fg={t["base"]},bg={t["accent"]},bold"
+set -g status-right "#[fg={t["gray"]}] %H:%M #[fg={t["accent"]}]%d-%b-%y"
+"""
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--wallpapers", action="store_true",
@@ -368,6 +423,8 @@ def main():
         (os.path.join(DOTS, "dolphin", "kdeglobals"), kdeglobals(t)),
         (os.path.join(DOTS, "yazi", "theme.toml"), yazi(t)),
         (os.path.join(DOTS, "quickshell-greeter", "Colors.qml"), greeter_palette(t)),
+        (os.path.join(DOTS, "nvim", "lua", "config", "theme-colors.lua"), nvim_colors(t)),
+        (os.path.join(DOTS, "tmux", "theme.conf"), tmux(t)),
     ]
 
     changed = [os.path.basename(p) for p, c in targets if write(p, c)]
@@ -375,6 +432,8 @@ def main():
     if changed:
         print("updated: " + ", ".join(changed))
         subprocess.run(["hyprctl", "reload"], capture_output=True)
+        subprocess.run(["tmux", "source-file", os.path.join(DOTS, "tmux.conf")],
+                        capture_output=True)
     else:
         print("already up to date")
 
@@ -383,6 +442,7 @@ def main():
 
     print(f"theme: {t.get('name', 'unnamed')}")
     print("ghostty needs a restart to pick up colour changes")
+    print("nvim needs :source $MYVIMRC (or a restart) to pick up colour changes")
 
 
 if __name__ == "__main__":

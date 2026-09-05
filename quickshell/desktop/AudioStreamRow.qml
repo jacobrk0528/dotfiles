@@ -46,7 +46,7 @@ ColumnLayout {
             glyph: root.node.audio?.muted ? "󰝟" : "󰕾"
             size: 20
             glyphSize: Theme.fontSize - 1
-            glyphColor: root.node.audio?.muted ? Theme.orange : Theme.alpha("#ffffff", 0.55)
+            glyphColor: root.node.audio?.muted ? Theme.orange : Theme.alpha(Theme.text, 0.55)
             onClicked: {
                 if (root.node.audio)
                     root.node.audio.muted = !root.node.audio.muted;
@@ -57,7 +57,7 @@ ColumnLayout {
             Layout.fillWidth: true
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize - 2
-            color: Theme.alpha("#ffffff", 0.65)
+            color: Theme.alpha(Theme.text, 0.65)
             elide: Text.ElideRight
             text: root.label
         }
@@ -65,7 +65,7 @@ ColumnLayout {
         Text {
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize - 2
-            color: Theme.alpha("#ffffff", 0.4)
+            color: Theme.alpha(Theme.text, 0.4)
             text: Math.round((root.node.audio?.volume ?? 0) * 100) + "%"
         }
     }

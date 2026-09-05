@@ -3,19 +3,19 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property color base: "#0d1117"
-    readonly property color accent: Qt.rgba(0.5451, 0.9137, 0.9922, 0.85)
-    readonly property color red: Qt.rgba(1.0000, 0.3333, 0.3333, 0.85)
-    readonly property color green: Qt.rgba(0.3137, 0.9804, 0.4824, 0.85)
-    readonly property color gray: "#8b949e"
+    readonly property color base: "#0c1218"
+    readonly property color accent: Qt.rgba(0.5412, 0.7176, 0.9020, 0.85)
+    readonly property color red: Qt.rgba(0.8863, 0.4745, 0.4745, 0.85)
+    readonly property color green: Qt.rgba(0.4745, 0.8863, 0.6118, 0.85)
+    readonly property color gray: "#8d949a"
 
-    readonly property color cardBg: Qt.rgba(0.0510, 0.0667, 0.0902, 0.75)
+    readonly property color cardBg: Qt.rgba(0.0471, 0.0706, 0.0941, 0.75)
     readonly property color fieldBg: Qt.rgba(0.0000, 0.0000, 0.0000, 0.35)
-    readonly property color border: Qt.rgba(1.0000, 1.0000, 1.0000, 0.08)
+    readonly property color border: Qt.rgba(0.9333, 0.9333, 0.9490, 0.08)
 
-    readonly property color textPrimary: Qt.rgba(1.0000, 1.0000, 1.0000, 0.9)
-    readonly property color textSecondary: Qt.rgba(1.0000, 1.0000, 1.0000, 0.6)
-    readonly property color textDim: Qt.rgba(1.0000, 1.0000, 1.0000, 0.35)
+    readonly property color textPrimary: Qt.rgba(0.9333, 0.9333, 0.9490, 0.9)
+    readonly property color textSecondary: Qt.rgba(0.9333, 0.9333, 0.9490, 0.6)
+    readonly property color textDim: Qt.rgba(0.9333, 0.9333, 0.9490, 0.35)
 
     readonly property string fontFamily: "JetBrainsMono Nerd Font"
     readonly property int panelRadius: 20

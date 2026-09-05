@@ -72,7 +72,7 @@ ColumnLayout {
                 implicitWidth: 52
                 implicitHeight: 52
                 radius: 8
-                color: Theme.alpha("#ffffff", 0.08)
+                color: Theme.alpha(Theme.text, 0.08)
 
                 Image {
                     anchors.fill: parent
@@ -99,7 +99,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
-                    color: Theme.alpha("#ffffff", 0.9)
+                    color: Theme.alpha(Theme.text, 0.9)
                     elide: Text.ElideRight
                     text: root.player?.trackTitle ?? ""
                 }
@@ -109,7 +109,7 @@ ColumnLayout {
                     visible: text !== ""
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize - 2
-                    color: Theme.alpha("#ffffff", 0.55)
+                    color: Theme.alpha(Theme.text, 0.55)
                     elide: Text.ElideRight
                     text: root.player?.trackArtist ?? ""
                 }
@@ -136,7 +136,7 @@ ColumnLayout {
         Text {
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize - 3
-            color: Theme.alpha("#ffffff", 0.45)
+            color: Theme.alpha(Theme.text, 0.45)
             text: root.fmt(root.player?.position ?? 0)
         }
 
@@ -159,7 +159,7 @@ ColumnLayout {
         Text {
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize - 3
-            color: Theme.alpha("#ffffff", 0.45)
+            color: Theme.alpha(Theme.text, 0.45)
             text: root.fmt(root.player?.length ?? 0)
         }
     }
@@ -204,7 +204,7 @@ ColumnLayout {
             glyph: root.muted ? "󰝟" : "󰕾"
             size: 20
             glyphSize: Theme.fontSize - 1
-            glyphColor: root.muted ? Theme.orange : Theme.alpha("#ffffff", 0.5)
+            glyphColor: root.muted ? Theme.orange : Theme.alpha(Theme.text, 0.5)
             onClicked: root.toggleMute()
         }
 

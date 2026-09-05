@@ -69,9 +69,9 @@ ColumnLayout {
 
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize + 1
-            color: Theme.alpha("#ffffff", 0.9)
+            color: Theme.alpha(Theme.text, 0.9)
             selectionColor: Theme.alpha(Theme.accent, 0.35)
-            selectedTextColor: Theme.alpha("#ffffff", 0.9)
+            selectedTextColor: Theme.alpha(Theme.text, 0.9)
             clip: true
 
             Keys.onEscapePressed: {
@@ -96,7 +96,7 @@ ColumnLayout {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: input.text === ""
                 font: input.font
-                color: Theme.alpha("#ffffff", 0.35)
+                color: Theme.alpha(Theme.text, 0.35)
                 text: "Ask the AI…"
             }
         }
@@ -107,7 +107,7 @@ ColumnLayout {
         visible: root.state === "thinking"
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize - 1
-        color: Theme.alpha("#ffffff", 0.55)
+        color: Theme.alpha(Theme.text, 0.55)
         text: "Thinking…"
     }
 
@@ -117,7 +117,7 @@ ColumnLayout {
         wrapMode: Text.Wrap
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize - 1
-        color: root.state === "error" ? Theme.red : Theme.alpha("#ffffff", 0.8)
+        color: root.state === "error" ? Theme.red : Theme.alpha(Theme.text, 0.8)
         text: root.response
     }
 }

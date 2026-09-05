@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""Generate a theme.json palette from a wallpaper.
+
+Picks a base/surface/text/accent from the image's darkest, lightest and most
+saturated dominant colours, then generates the rest of the ANSI-style palette
+(red/orange/yellow/green/purple/pink/gray) at fixed hues so it reads as one
+coherent set rather than a scattershot of literal picture colours.
+
+    extract-theme <wallpaper> [--name NAME]   print the palette as JSON
+    extract-theme <wallpaper> -o theme.json   write it to a file
+
+Non-colour keys (font, spacing, opacity, ...) are not touched here — the
+caller merges this output over an existing theme.json.
+"""
+
+import argparse
+import colorsys
+import json
+import sys
+
+from PIL import Image
+
+# Fixed hue positions (0..1) for the generated semantic colours, and the hue
+# name used to pick a default theme name from the accent's hue.
+HUES = {
+    "red": 0 / 360,
+    "orange": 32 / 360,
+    "yellow": 52 / 360,
+    "green": 140 / 360,
+    "purple": 265 / 360,
+    "pink": 330 / 360,
+}
+
+HUE_NAMES = [
+    (15, "Ember"), (45, "Amber"), (70, "Solstice"), (160, "Forest"),
+    (200, "Lagoon"), (250, "Glacier"), (290, "Dusk"), (330, "Bloom"),
+    (360, "Ember"),
+]
+
+
+def hex_of(h, l, s):
+    r, g, b = colorsys.hls_to_rgb(h, l, s)
+    return "#{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
+
+
+def hls_of(rgb):
+    r, g, b = rgb
+    return colorsys.rgb_to_hls(r / 255, g / 255, b / 255)  # -> (h, l, s)
+
+
+def dominant_colors(path, n=8):
+    """(count, (r, g, b)) for each of the image's n dominant colours."""
+    img = Image.open(path).convert("RGB")
+    img.thumbnail((200, 200))
+    quant = img.quantize(colors=n, method=Image.MEDIANCUT)
+    palette = quant.getpalette()
+    return [
+        (count, tuple(palette[idx * 3:idx * 3 + 3]))
+        for count, idx in quant.getcolors()
+    ]
+
+
+def hue_name(h):
+    deg = h * 360
+    for limit, name in HUE_NAMES:
+        if deg < limit:
+            return name
+    return "Ember"
+
+
+def extract(path, name=None):
+    colors = dominant_colors(path)
+    by_lightness = sorted(colors, key=lambda c: hls_of(c[1])[1])
+
+    darkest_h, darkest_s = hls_of(by_lightness[0][1])[0], hls_of(by_lightness[0][1])[2]
+    lightest_h, lightest_s = hls_of(by_lightness[-1][1])[0], hls_of(by_lightness[-1][1])[2]
+
+    # Most saturated colour that isn't near-black or near-white noise.
+    mid = [c for c in colors if 0.15 < hls_of(c[1])[1] < 0.9] or colors
+    accent_rgb = max(mid, key=lambda c: hls_of(c[1])[2])[1]
+    accent_h, accent_l, accent_s = hls_of(accent_rgb)
+    accent_s = max(accent_s, 0.45)
+
+    base_s = min(darkest_s, 0.35)
+    sat = max(0.35, min(accent_s, 0.75))
+
+    theme = {
+        "name": name or hue_name(accent_h),
+        "base": hex_of(darkest_h, 0.07, base_s),
+        "surface": hex_of(darkest_h, 0.12, base_s),
+        "text": hex_of(lightest_h, 0.94, min(lightest_s, 0.12)),
+        "accent": hex_of(accent_h, 0.72, sat),
+        "gray": hex_of(darkest_h, 0.58, 0.06),
+    }
+    for label, h in HUES.items():
+        theme[label] = hex_of(h, 0.68, sat)
+
+    return theme
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("wallpaper")
+    ap.add_argument("--name", help="theme name (default: guessed from the accent hue)")
+    ap.add_argument("-o", "--output", help="write JSON here instead of stdout")
+    args = ap.parse_args()
+
+    try:
+        theme = extract(args.wallpaper, args.name)
+    except (OSError, ValueError) as e:
+        sys.exit(f"cannot read {args.wallpaper}: {e}")
+
+    text = json.dumps(theme, indent=2) + "\n"
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(text)
+    else:
+        sys.stdout.write(text)
+
+
+if __name__ == "__main__":
+    main()

@@ -2,29 +2,32 @@ function RosePine_Theme()
     vim.cmd("colorscheme rose-pine") -- Using Rose Pine as a base
     vim.cmd([[set guicursor=n-v-c:block-Cursor\/lCursor,i-ci-ve:ver25-Cursor\/lCursor,r-cr:hor20,o:hor50]])
 
-    -- Base colors inspired by Rosé Pine Dark but with custom variations
-    local bg_deep = "#191724"    -- Base background (slightly deeper than original)
-    local bg_surface = "#1f1d2e" -- Surface background
-    local bg_overlay = "#26233a" -- Overlays and secondary surfaces
-    local bg_inactive = "#282638"
-    local fg_main = "#e0def4"    -- Main foreground text
-    local fg_muted = "#908caa"   -- Muted foreground text
-    local fg_subtle = "#6e6a86"  -- Subtle foreground text
+    -- Colours come from theme.json via quickshell/scripts/apply-theme, which
+    -- writes config/theme-colors.lua on every apply. Edit theme.json instead.
+    local colors = require("config.theme-colors")
+
+    local bg_deep = colors.bg_deep
+    local bg_surface = colors.bg_surface
+    local bg_overlay = colors.bg_overlay
+    local bg_inactive = colors.bg_inactive
+    local fg_main = colors.fg_main
+    local fg_muted = colors.fg_muted
+    local fg_subtle = colors.fg_subtle
 
     -- Accent colors
-    local rose = "#ebbcba"        -- Rose
-    local pine = "#31748f"        -- Pine
-    local love = "#eb6f92"        -- Love (red/pink)
-    local foam = "#9ccfd8"        -- Foam (cyan)
-    local gold = "#f6c177"        -- Gold
-    local iris = "#c4a7e7"        -- Iris (purple)
-    local subtle_iris = "#9a86c9" -- Subtle iris (muted purple)
+    local rose = colors.rose
+    local pine = colors.pine
+    local love = colors.love
+    local foam = colors.foam
+    local gold = colors.gold
+    local iris = colors.iris
+    local subtle_iris = colors.subtle_iris
 
     -- Custom accent colors to complement Rose Pine
-    local deep_pine = "#235a70"    -- Deeper pine
-    local vintage_rose = "#d9adad" -- Vintage rose
-    local faded_gold = "#c8a088"   -- Faded gold
-    local muted_green = "#9bab7e"  -- Muted green accent
+    local deep_pine = colors.deep_pine
+    local vintage_rose = colors.vintage_rose
+    local faded_gold = colors.faded_gold
+    local muted_green = colors.muted_green
 
     -- Set cursor and normal background
     vim.api.nvim_set_hl(0, "Cursor", { fg = bg_deep, bg = rose })

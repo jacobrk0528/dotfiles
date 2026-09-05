@@ -51,6 +51,9 @@ Singleton {
     }
 
     // ── Palette ──────────────────────────────────────────────────
+    readonly property color base: cfg.base
+    readonly property color surface: cfg.surface
+    readonly property color text: cfg.text
     readonly property color accent: cfg.accent
     readonly property color green: cfg.green
     readonly property color yellow: cfg.yellow
@@ -109,7 +112,7 @@ Singleton {
     readonly property color wsActiveFg: alpha(cfg.text, 0.9)
     readonly property color wsHoverBg: hoverBg
     readonly property color wsHoverFg: alpha(cfg.text, 0.65)
-    readonly property color wsUrgentBg: Qt.rgba(235 / 255, 77 / 255, 75 / 255, 0.45)
+    readonly property color wsUrgentBg: alpha(cfg.red, 0.45)
 
     // ── Helpers ──────────────────────────────────────────────────
     function alpha(c, a) {
