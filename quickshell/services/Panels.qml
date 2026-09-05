@@ -7,7 +7,7 @@ import QtQuick
 Singleton {
     id: root
 
-    // "" | "launcher" | "control" | "notifications" | "power" | "cheatsheet" | "ai"
+    // "" | "launcher" | "control" | "notifications" | "power" | "cheatsheet" | "ai" | "homeassistant"
     property string open: ""
 
     readonly property bool anyOpen: open !== ""
