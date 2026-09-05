@@ -30,8 +30,8 @@ hl.env("LC_ALL",         "en_US.UTF-8")
 local hostname = io.popen("cat /etc/hostname"):read("*l")
 
 hl.monitor({ output = "desc:Acer Technologies XB273 GX 0x15205CF0", mode = "1920x1080@60", position = "0x0", scale = 1 })		-- Middle
-hl.monitor({ output = "DP-8", mode = "1920x1080@60", position = "1920x0", scale = 1 })											-- Right
-hl.monitor({ output = "DP-7", mode = "1920x1080@60", position = "-1920x0", scale = 1 })											-- Left
+hl.monitor({ output = "DP-7", mode = "1920x1080@60", position = "1920x0", scale = 1 })											-- Right
+hl.monitor({ output = "DP-8", mode = "1920x1080@60", position = "-1920x0", scale = 1 })											-- Left
 hl.monitor({ output = "desc:Acer Technologies PM161Q C 25230110E4HA1", mode = "1920x1080@60", position = "0x1080", scale = 1 }) -- Bottom
 
 -----------------------
@@ -242,16 +242,16 @@ hl.window_rule({ name = "yazi-center", match = { class = "com\\.jkrebs\\.yazi" }
 local workspace_configs = {
     optimus = {
 		-- Left
-        { workspace = "1",  monitor = "DP-7" },
-        { workspace = "4",  monitor = "DP-7" },
+        { workspace = "1",  monitor = "DP-8" },
+        { workspace = "4",  monitor = "DP-8" },
 
 		-- Middle
         { workspace = "2",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
         { workspace = "5",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
 
 		-- Right
-        { workspace = "3",  monitor = "DP-8" },
-        { workspace = "6",  monitor = "DP-8" },
+        { workspace = "3",  monitor = "DP-7" },
+        { workspace = "6",  monitor = "DP-7" },
 
 		-- Bottom
         { workspace = "7",  monitor = "desc:Acer Technologies PM161Q C 25230110E4HA1" },
@@ -291,11 +291,37 @@ hl.bind(mainMod .. " + Home", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/scripts/scr
 local function screenshot_workspace_clipboard(workspace)
     return function()
         local ws = hl.get_workspace(workspace)
-        if ws and ws.monitor then
-            hl.exec_cmd("hyprshot -m output -m " .. ws.monitor.name .. " --clipboard-only")
-        else
-            hl.notification.create({ text = "Workspace '" .. tostring(workspace) .. "' isn't visible on any monitor", timeout = 3000 })
+        if not ws or not ws.monitor then
+            hl.notification.create({ text = "Workspace '" .. tostring(workspace) .. "' doesn't exist", timeout = 3000 })
+            hl.dispatch(hl.dsp.submap(""))
+            return
         end
+
+        local monitor_name = ws.monitor.name
+
+        if ws.visible then
+            hl.exec_cmd("hyprshot -m output -m " .. monitor_name .. " --clipboard-only")
+        else
+            -- Workspace isn't currently shown on any monitor. Briefly switch its
+            -- home monitor to it, screenshot, then switch back to what was there.
+            local focused = hl.get_active_monitor()
+            local previous = ws.monitor.active_workspace
+            local restore_ref = previous and (previous.special and previous.name or tostring(previous.id)) or nil
+
+            local cmd = "hyprctl dispatch focusmonitor " .. monitor_name
+                .. " && hyprctl dispatch workspace " .. tostring(workspace)
+                .. " && sleep 0.15"
+                .. " && hyprshot -m output -m " .. monitor_name .. " --clipboard-only"
+            if restore_ref then
+                cmd = cmd .. " && hyprctl dispatch workspace " .. restore_ref
+            end
+            if focused and focused.name ~= monitor_name then
+                cmd = cmd .. " && hyprctl dispatch focusmonitor " .. focused.name
+            end
+
+            hl.exec_cmd(cmd)
+        end
+
         hl.dispatch(hl.dsp.submap(""))
     end
 end
@@ -334,6 +360,7 @@ hl.bind(mainMod .. " + slash",     hl.dsp.global("quickshell:cheatsheet"))
 hl.bind(mainMod .. " + Escape",    hl.dsp.global("quickshell:power"))
 hl.bind(mainMod .. " + W",         hl.dsp.global("quickshell:wallpapers"))
 hl.bind(mainMod .. " + A",         hl.dsp.global("quickshell:ai"))
+hl.bind(mainMod .. " + Y",         hl.dsp.global("quickshell:homeassistant"))
 
 
 -- Audio keybinds
@@ -387,7 +414,7 @@ hl.bind("Delete", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictat
 hl.bind(mainMod .. " + Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh teach-start"))
 hl.bind(mainMod .. " + Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh stop"), { release = true })
 
--- Swap DP-8 / DP-7 (KVM sometimes swaps which port each monitor lands on)
+-- Swap DP-7 / DP-8 (KVM sometimes swaps which port each monitor lands on)
 hl.bind(mainMod .. " + CTRL + M", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/swap-monitors"))
 
 -- Mouse move/resize
