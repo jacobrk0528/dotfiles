@@ -30,6 +30,15 @@ echo "📦 Installing packages from Brewfile..."
 # actually check; without it their formulas block on a raw STDIN.gets prompt
 # that brew bundle's output buffering can make look hung.
 export HOMEBREW_ACCEPT_EULA=Y
+
+# Homebrew refuses to install from a tap it hasn't been told to trust yet.
+# Tap and trust ours explicitly before `brew bundle` pulls from them, or
+# every formula/cask in the Brewfile silently fails.
+for tap in microsoft/mssql-release manaflow-ai/cmux; do
+    brew tap "$tap"
+    brew trust "$tap"
+done
+
 brew bundle --file="$DOTFILES_DIR/mac/Brewfile"
 
 # Tailscale is often installed manually outside Homebrew (e.g. Mac App Store,
