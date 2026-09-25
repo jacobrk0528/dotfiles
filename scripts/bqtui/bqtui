@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Launcher for bqtui — a BigQuery terminal workbench built on OpenTUI + Bun.
+# Installs dependencies on first run, then execs the app in this terminal.
+set -euo pipefail
+DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+if ! command -v bun >/dev/null 2>&1; then
+  echo "bqtui: bun is required (https://bun.sh)" >&2
+  exit 1
+fi
+if ! command -v bq >/dev/null 2>&1; then
+  echo "bqtui: the bq CLI is required (install the Google Cloud SDK)" >&2
+  exit 1
+fi
+if [ ! -d "$DIR/node_modules" ]; then
+  (cd "$DIR" && bun install --silent)
+fi
+exec bun run "$DIR/src/index.tsx" "$@"
