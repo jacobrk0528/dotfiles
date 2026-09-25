@@ -1,11 +1,13 @@
 #!/bin/bash
 
-gpu_util=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1 | xargs)
+. "$(dirname "$(readlink -f "$0")")/gpu-common"
 
-if [ -z "$gpu_util" ]; then
+if ! gpu_query "utilization.gpu"; then
   text="—"
-  tooltip="GPU Utilization: Unavailable"
+  tooltip="GPU Utilization: unavailable
+  $GPU_ERROR"
 else
+  gpu_util=$(echo "$GPU_ROW" | xargs)
   if [ "$gpu_util" -lt 50 ] 2>/dev/null; then
     util_color="<span color=\"#50fa7b\">${gpu_util}%</span>"
   elif [ "$gpu_util" -lt 85 ] 2>/dev/null; then

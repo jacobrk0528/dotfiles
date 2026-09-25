@@ -1,11 +1,15 @@
 #!/bin/bash
 
-gpu_info=$(nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw,power.limit,fan.speed --format=csv,noheader,nounits 2>/dev/null | head -n1)
+. "$(dirname "$(readlink -f "$0")")/gpu-common"
 
-if [ -z "$gpu_info" ]; then
+GPU_FIELDS="name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw,power.limit,fan.speed"
+
+if ! gpu_query "$GPU_FIELDS"; then
   text="—"
-  tooltip="GPU: Unavailable"
+  tooltip="GPU: unavailable
+  $GPU_ERROR"
 else
+  gpu_info=$GPU_ROW
   IFS=',' read -r gpu_name gpu_temp gpu_util vram_used vram_total pwr_draw pwr_limit fan_speed <<< "$gpu_info"
 
   # Trim whitespace
@@ -30,6 +34,8 @@ else
   # Fan speed string
   if [ "$fan_speed" -eq 0 ] 2>/dev/null; then
     fan_str="0% (Silent)"
+  elif [ "$(gpu_num "$fan_speed" "%.0f")" = "n/a" ]; then
+    fan_str="n/a"          # cards that do not expose a fan report [N/A]
   else
     fan_str="${fan_speed}%"
   fi
@@ -40,11 +46,11 @@ else
   vram_pct=$(awk "BEGIN {printf \"%.1f\", ($vram_used / $vram_total) * 100}")
 
   # Power calculations
-  pwr_draw_f=$(awk "BEGIN {printf \"%.1f\", $pwr_draw}")
-  pwr_limit_f=$(awk "BEGIN {printf \"%.1f\", $pwr_limit}")
+  pwr_draw_f=$(gpu_num "$pwr_draw" "%.1f")
+  pwr_limit_f=$(gpu_num "$pwr_limit" "%.1f")
 
   # Top GPU processes
-  gpu_procs=$(nvidia-smi --query-compute-apps=process_name,used_memory --format=csv,noheader,nounits 2>/dev/null | awk -F',' '{
+  gpu_procs=$(nvidia-smi --query-compute-apps=process_name,used_memory --format=csv,noheader,nounits 2>/dev/null | awk -F',' 'NF >= 2 {
     gsub(/^[ \t]+|[ \t]+$/, "", $1);
     gsub(/^[ \t]+|[ \t]+$/, "", $2);
     split($1, a, " ");

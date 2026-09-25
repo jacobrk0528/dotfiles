@@ -10,6 +10,7 @@ Run after editing theme.json:  quickshell/scripts/apply-theme
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -431,9 +432,15 @@ def main():
 
     if changed:
         print("updated: " + ", ".join(changed))
-        subprocess.run(["hyprctl", "reload"], capture_output=True)
-        subprocess.run(["tmux", "source-file", os.path.join(DOTS, "tmux.conf")],
-                        capture_output=True)
+        # Live-reload the two consumers that can take it without a restart.
+        # shutil.which first: this script also runs on macOS and over ssh on
+        # boxes with no hyprland, where subprocess.run would raise
+        # FileNotFoundError and take the whole theme pass down with it.
+        if shutil.which("hyprctl"):
+            subprocess.run(["hyprctl", "reload"], capture_output=True)
+        if shutil.which("tmux"):
+            subprocess.run(["tmux", "source-file", os.path.join(DOTS, "tmux.conf")],
+                           capture_output=True)
     else:
         print("already up to date")
 

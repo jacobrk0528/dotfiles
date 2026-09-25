@@ -1,0 +1,99 @@
+#!/bin/bash
+# Shared nvidia-smi guard for gpu_temp and gpu_util. Source this; do not run it.
+#
+# nvidia-smi writes "Failed to initialize NVML: ..." to STDOUT and exits
+# non-zero, so the usual `cmd 2>/dev/null` + empty-check misses it entirely: the
+# error text flows straight through as if it were data. That is how the whole
+# string "Failed to initialize NVML: Driver/library version mismatch" ended up
+# rendered in the bar as a utilization reading. Check the exit status.
+
+# gpu_query <comma-separated-fields>
+#   On success: sets GPU_ROW to the first CSV row, returns 0.
+#   On failure: sets GPU_ERROR to a short reason, returns 1.
+#
+# Results come back in variables rather than on stdout because a caller writing
+# `row=$(gpu_query ...)` would run this in a subshell, and GPU_ERROR would be
+# lost on exactly the path that needs it.
+gpu_query() {
+	local out rc
+	GPU_ROW=""
+	GPU_ERROR=""
+
+	if ! command -v nvidia-smi >/dev/null 2>&1; then
+		GPU_ERROR="nvidia-smi not installed"
+		return 1
+	fi
+
+	out=$(nvidia-smi --query-gpu="$1" --format=csv,noheader,nounits 2>&1)
+	rc=$?
+
+	if [ $rc -ne 0 ] || [ -z "$out" ]; then
+		GPU_ERROR=$(gpu_explain "$out")
+		return 1
+	fi
+
+	out=$(printf '%s\n' "$out" | head -n1)
+
+	# Defence in depth, in case nvidia-smi ever reports an error with a zero
+	# exit: validate the row against the query it answers. An error line is a
+	# single field, so it fails the count for any multi-field query, and every
+	# field except `name` has to parse as a number.
+	local -a want have
+	IFS=',' read -r -a want <<< "$1"
+	IFS=',' read -r -a have <<< "$out"
+
+	if [ ${#want[@]} -ne ${#have[@]} ]; then
+		GPU_ERROR=$(gpu_explain "$out")
+		return 1
+	fi
+
+	local i field value
+	for i in "${!want[@]}"; do
+		field=$(echo "${want[$i]}" | xargs)
+		value=$(echo "${have[$i]}" | xargs)
+		[ "$field" = "name" ] && continue
+		# nvidia-smi legitimately reports [N/A] for fields a given card does
+		# not expose (fan speed on many laptop GPUs, power limit on some), so
+		# that is a valid row, not an error.
+		case "$value" in
+			'[N/A]'|'N/A') continue ;;
+		esac
+		case "$value" in
+			''|*[!0-9.]*)
+				GPU_ERROR=$(gpu_explain "$out")
+				return 1
+				;;
+		esac
+	done
+
+	GPU_ROW=$out
+}
+
+# Turn nvidia-smi's output into something worth showing in a tooltip.
+gpu_explain() {
+	case "$1" in
+		*"Driver/library version mismatch"*)
+			echo "driver/library version mismatch — reboot to load the new NVIDIA module"
+			;;
+		*"NVIDIA-SMI has failed"*|*"couldn't communicate with the NVIDIA driver"*)
+			echo "NVIDIA driver not loaded"
+			;;
+		"")
+			echo "no response from nvidia-smi"
+			;;
+		*)
+			printf '%s\n' "$1" | head -n1
+			;;
+	esac
+}
+
+# gpu_num <value> <printf-format>
+# Formats a numeric nvidia-smi field, passing [N/A] through as "n/a" instead of
+# feeding it to awk, which errors out on the brackets.
+gpu_num() {
+	case "$1" in
+		''|'[N/A]'|'N/A') echo "n/a"; return ;;
+		*[!0-9.]*)        echo "n/a"; return ;;
+	esac
+	awk "BEGIN {printf \"$2\", $1}"
+}
