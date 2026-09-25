@@ -1,29 +1,21 @@
 #!/usr/bin/env bash
+# narsil -- BigQuery ETL, `staging` worktree. Uses a uv-managed .venv, which
+# b_venv finds on its own; do not hardcode the venv path here again.
+. "$(dirname "$(readlink -f "$0")")/builder_lib.sh"
 
-DIR="/home/jkrebs/Documents/TrinityRoad/local-git/narsil"
-NAME="narsil"
-SOURCE="source venv/bin/activate"
+b_init narsil "$HOME/Documents/TrinityRoad/local-git/narsil"
+b_venv
 
-cd $DIR
-# new-session lands its window on the ambient base-index (1 here), so pin it to
-# the index this layout wants instead of assuming base-index 0.
-tmux new-session -d -s $NAME -n claude -c $DIR
-tmux move-window -d -s $NAME:^ -t $NAME:0 2>/dev/null
+b_cd 0
+b_send 0 "claude"
 
-tmux send-keys -t $NAME:0 "cd $DIR && $SOURCE && clear" C-m
-tmux send-keys -t $NAME:0 "claude" C-m
+b_window 1 nvim
+b_cd 1
+b_send 1 "nvim ."
 
-tmux new-window -d -t $NAME:1 -n nvim -c $DIR
-tmux send-keys -t $NAME:1 "cd $DIR" C-m
-tmux send-keys -t $NAME:1 "$SOURCE && clear" C-m
-tmux send-keys -t $NAME:1 "nvim ." C-m
+b_window 2 shell
+b_cd 2
 
-tmux new-window -d -t $NAME:2 -n shell -c $DIR
-tmux send-keys -t $NAME:2 "cd $DIR && $SOURCE && clear" C-m
+b_ssh 3 dagobah dagobah /www/staging/narsil
 
-tmux new-window -d -t $NAME:3 -n dagobah -c $DIR
-tmux send-keys -t $NAME:3 "cd $DIR && clear && ssh dagobah" C-m
-tmux send-keys -t $NAME:3 "cd /www/staging/narsil && clear" C-m
-
-tmux select-window -t $NAME:1
-tmux attach -t $NAME
+b_finish 1

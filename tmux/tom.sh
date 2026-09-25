@@ -1,31 +1,24 @@
 #!/usr/bin/env bash
+# TomBombadil -- Bun/Hono Slack-native ops agent.
+. "$(dirname "$(readlink -f "$0")")/builder_lib.sh"
 
-DIR="/home/jkrebs/Documents/TrinityRoad/local-git/TomBombadil"
-NAME="tom"
+b_init tom "$HOME/Documents/TrinityRoad/local-git/TomBombadil"
 
-cd $DIR
-# new-session lands its window on the ambient base-index (1 here), so pin it to
-# the index this layout wants instead of assuming base-index 0.
-tmux new-session -d -s $NAME -n claude -c $DIR
-tmux move-window -d -s $NAME:^ -t $NAME:0 2>/dev/null
+b_cd 0
+b_send 0 "claude"
 
-tmux send-keys -t $NAME:0 "cd $DIR" C-m
-tmux send-keys -t $NAME:0 "claude" C-m
+b_window 1 nvim
+b_cd 1
+b_send 1 "nvim ."
 
-tmux new-window -d -t $NAME:1 -n nvim -c $DIR
-tmux send-keys -t $NAME:1 "cd $DIR" C-m
-tmux send-keys -t $NAME:1 "nvim ." C-m
+b_window 2 shell
+b_cd 2
 
-tmux new-window -d -t $NAME:2 -n shell -c $DIR
-tmux send-keys -t $NAME:2 "cd $DIR && clear" C-m
+# dagobah is production; the perceptor staging box is driven by `make deploy`.
+b_ssh 3 dagobah dagobah /www/services/TomBombadil
 
-tmux new-window -d -t $NAME:3 -n dagobah -c $DIR
-tmux send-keys -t $NAME:3 "cd $DIR && clear && ssh dagobah" C-m
-tmux send-keys -t $NAME:3 "cd /www/services/TomBombadil && clear" C-m
+b_window 9 dev
+b_cd 9
+b_send 9 "bun run dev"
 
-tmux new-window -d -t $NAME:9 -n dev -c $DIR
-tmux send-keys -t $NAME:9 "cd $DIR && clear" C-m
-tmux send-keys -t $NAME:9 "bun run dev" C-m
-
-tmux select-window -t $NAME:1
-tmux attach -t $NAME
+b_finish 1

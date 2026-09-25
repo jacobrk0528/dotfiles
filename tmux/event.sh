@@ -1,28 +1,22 @@
 #!/usr/bin/env bash
+# EventTracking -- Go event/attribution server (server/) feeding BigQuery.
+# The pixel now lives in narsil-connector, not this repo.
+. "$(dirname "$(readlink -f "$0")")/builder_lib.sh"
 
-DIR="/home/jkrebs/Documents/TrinityRoad/local-git/EventTracking"
-NAME="event"
+b_init event "$HOME/Documents/TrinityRoad/local-git/EventTracking"
 
-cd $DIR
-# new-session lands its window on the ambient base-index (1 here), so pin it to
-# the index this layout wants instead of assuming base-index 0.
-tmux new-session -d -s $NAME -n claude -c $DIR
-tmux move-window -d -s $NAME:^ -t $NAME:0 2>/dev/null
+b_cd 0
+b_send 0 "claude"
 
-tmux send-keys -t $NAME:0 "cd $DIR && clear" C-m
-tmux send-keys -t $NAME:0 "claude" C-m
+b_window 1 nvim
+b_cd 1
+b_send 1 "nvim ."
 
-tmux new-window -d -t $NAME:1 -n nvim -c $DIR
-tmux send-keys -t $NAME:1 "cd $DIR" C-m
-tmux send-keys -t $NAME:1 "clear" C-m
-tmux send-keys -t $NAME:1 "nvim ." C-m
+b_window 2 shell
+b_cd 2
 
-tmux new-window -d -t $NAME:2 -n shell -c $DIR
-tmux send-keys -t $NAME:2 "cd $DIR && clear" C-m
+# Lowercase 'e' -- the box has /www/services/eventTracking, which is what
+# server/makefile scps to. The old capitalised path never existed there.
+b_ssh 3 dagobah dagobah /www/services/eventTracking
 
-tmux new-window -d -t $NAME:3 -n dagobah -c $DIR
-tmux send-keys -t $NAME:3 "cd $DIR && clear && ssh dagobah" C-m
-tmux send-keys -t $NAME:3 "cd /www/services/EventTracking && clear" C-m
-
-tmux select-window -t $NAME:1
-tmux attach -t $NAME
+b_finish 1

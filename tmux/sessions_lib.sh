@@ -47,11 +47,11 @@ session_exists() {
 
 # ensure_session <name> - create it detached if missing. Never attaches.
 #
-# The per-session builders end in `tmux attach -t $NAME` so that running them by
-# hand from a terminal drops you into the session. Headless that call fails with
-# "open terminal failed" and a non-zero exit AFTER the session is fully built, so
-# we feed them /dev/null, ignore their status, and judge success by whether the
-# session actually exists.
+# The builders end in b_finish, which attaches only when stdout is a terminal,
+# so the headless path is clean. The /dev/null redirect and ignored exit status
+# stay as a guard: a hand-written builder that calls `tmux attach` directly
+# would otherwise fail with "open terminal failed" AFTER building the session,
+# so success is judged by whether the session actually exists.
 ensure_session() {
   local name=$1 builder
   session_exists "$name" && return 0

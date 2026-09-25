@@ -1,23 +1,17 @@
 #!/usr/bin/env bash
+# bc_utils -- flat Python BI scripts (forecasting, order alerts, Slack reports).
+# No claude window: this layout starts at 1 with the editor.
+. "$(dirname "$(readlink -f "$0")")/builder_lib.sh"
 
-DIR="/home/jkrebs/Documents/TrinityRoad/local-git/bc_utils"
-NAME="bcUtils"
+b_init bcUtils "$HOME/Documents/TrinityRoad/local-git/bc_utils" nvim 1
+b_venv
 
-cd $DIR
-# new-session lands its window on the ambient base-index, so pin it to index 1
-# (the editor window) rather than assuming base-index 0 and colliding with it.
-tmux new-session -d -s $NAME -n nvim -c $DIR
-tmux move-window -d -s $NAME:^ -t $NAME:1 2>/dev/null
+b_cd 1
+b_send 1 "nvim ."
 
-tmux send-keys -t $NAME:1 "cd $DIR" C-m
-tmux send-keys -t $NAME:1 "nvim ." C-m
+b_window 2 shell
+b_cd 2
 
-tmux new-window -d -t $NAME:2 -n shell -c $DIR
-tmux send-keys -t $NAME:2 "cd $DIR && clear" C-m
+b_ssh 3 bespin bespin /www/bc_utils
 
-tmux new-window -d -t $NAME:3 -n bespin -c $DIR
-tmux send-keys -t $NAME:3 "cd $DIR && clear && ssh bespin" C-m
-tmux send-keys -t $NAME:3 "cd /www/bc_utils && clear" C-m
-
-tmux select-window -t $NAME:1
-tmux attach -t $NAME
+b_finish 1
