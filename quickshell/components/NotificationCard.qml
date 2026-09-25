@@ -13,6 +13,9 @@ Card {
     required property var notif
     // Popups count down and dismiss themselves; center entries stay put.
     property bool isPopup: false
+    // True while the inline reply field has focus; the popup window uses
+    // this to decide whether to request keyboard input from the compositor.
+    readonly property bool replyActive: replyInput.activeFocus
 
     readonly property color urgencyColor: {
         if (!notif)
@@ -25,6 +28,14 @@ Card {
     }
 
     implicitHeight: layout.implicitHeight + Theme.spacingL * 2
+
+    function sendReply() {
+        const text = replyInput.text.trim();
+        if (text.length === 0)
+            return;
+        root.notif.sendInlineReply(text);
+        Notifs.close(root.notif);
+    }
 
     // Urgency stripe down the left edge.
     Rectangle {
@@ -39,6 +50,16 @@ Card {
             topMargin: Theme.spacingM
             bottomMargin: Theme.spacingM
         }
+    }
+
+    // Tracks card-wide hover for the fade-in buttons below. A plain
+    // MouseArea only reports containsMouse for whichever overlapping
+    // MouseArea is topmost, so it drops to false — and the buttons vanish —
+    // the instant the cursor crosses onto one of the IconButtons (which are
+    // MouseAreas themselves). HoverHandler doesn't grab hover exclusively,
+    // so it keeps reporting hovered while the cursor is over a child.
+    HoverHandler {
+        id: cardHover
     }
 
     MouseArea {
@@ -104,6 +125,45 @@ Card {
                     color: Theme.textDim
                     text: root.notif?.appName ?? ""
                 }
+
+                IconButton {
+                    readonly property string appKey: Notifs.appKey(root.notif?.appName ?? "", root.notif?.summary ?? "")
+
+                    glyph: Notifs.isPriority(appKey) ? "󰓎" : "󰓒"
+                    glyphSize: 12
+                    glyphColor: Notifs.isPriority(appKey) ? Theme.accent : Theme.textSecondary
+                    opacity: cardHover.hovered || Notifs.isPriority(appKey) ? 1 : 0
+                    visible: (root.notif?.appName ?? "") !== ""
+                    onClicked: {
+                        if (Notifs.isPriority(appKey))
+                            Notifs.unmarkPriority(appKey);
+                        else
+                            Notifs.markPriority(appKey);
+                    }
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.durFast
+                        }
+                    }
+                }
+
+                IconButton {
+                    glyph: "󰂛"
+                    glyphSize: 12
+                    opacity: cardHover.hovered ? 1 : 0
+                    visible: (root.notif?.appName ?? "") !== ""
+                    onClicked: {
+                        Notifs.blockApp(Notifs.appKey(root.notif.appName, root.notif.summary));
+                        Notifs.close(root.notif);
+                    }
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.durFast
+                        }
+                    }
+                }
             }
 
             Text {
@@ -116,7 +176,7 @@ Card {
                 maximumLineCount: 5
                 elide: Text.ElideRight
                 textFormat: Text.StyledText
-                text: root.notif?.body ?? ""
+                text: Notifs.decodeBody(root.notif?.body ?? "")
                 onLinkActivated: link => Qt.openUrlExternally(link)
             }
 
@@ -127,11 +187,13 @@ Card {
 
                 Repeater {
                     id: repeater
-                    model: root.notif?.actions ?? []
+                    // A sender with inline reply typically also ships a discrete
+                    // "Reply" action for daemons that can't render a text field;
+                    // drop it since our own field below replaces it.
+                    model: (root.notif?.actions ?? []).filter(a => a.identifier !== "default" && !(root.notif?.hasInlineReply && /reply/i.test(a.text)))
 
                     TextButton {
                         required property var modelData
-                        visible: modelData.identifier !== "default"
                         label: modelData.text
                         onClicked: {
                             modelData.invoke();
@@ -140,11 +202,64 @@ Card {
                     }
                 }
             }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+                spacing: Theme.spacingS
+                visible: root.notif?.hasInlineReply ?? false
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 28
+                    radius: Theme.radius
+                    color: Theme.widgetBg
+                    border.width: 1
+                    border.color: replyInput.activeFocus ? Theme.accent : Theme.widgetBorder
+
+                    Behavior on border.color {
+                        ColorAnimation {
+                            duration: Theme.durFast
+                        }
+                    }
+
+                    TextInput {
+                        id: replyInput
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacingS
+                        anchors.rightMargin: Theme.spacingS
+                        verticalAlignment: TextInput.AlignVCenter
+                        clip: true
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize
+                        color: Theme.textPrimary
+                        selectionColor: Theme.alpha(Theme.accent, 0.35)
+                        selectedTextColor: Theme.textPrimary
+
+                        Keys.onReturnPressed: root.sendReply()
+                        Keys.onEnterPressed: root.sendReply()
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: replyInput.text === ""
+                            font: replyInput.font
+                            color: Theme.textDim
+                            text: root.notif?.inlineReplyPlaceholder || "Reply…"
+                        }
+                    }
+                }
+
+                TextButton {
+                    label: "Send"
+                    accented: true
+                    onClicked: root.sendReply()
+                }
+            }
         }
 
         IconButton {
             glyph: "󰅖"
-            opacity: hover.containsMouse ? 1 : 0
+            opacity: cardHover.hovered ? 1 : 0
             Layout.alignment: Qt.AlignTop
             onClicked: Notifs.close(root.notif)
 
@@ -183,7 +298,7 @@ Card {
         target: timebar
         property: "fraction"
         running: root.isPopup
-        paused: hover.containsMouse
+        paused: cardHover.hovered || replyInput.activeFocus
         from: 1
         to: 0
         duration: root.lifetime

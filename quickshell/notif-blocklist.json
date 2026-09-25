@@ -1,0 +1,8 @@
+{
+    "blockedApps": [
+        "KDE Connect: Slack",
+        "KDE Connect: Claude"
+    ],
+    "priorityApps": [
+    ]
+}

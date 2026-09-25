@@ -13,6 +13,9 @@ hypr/wallpapers/generated/
 **/.opencode/
 **/.claude/settings.local.json
 
+# --- Personal data, not config (notification bodies can carry private info) ---
+quickshell/notif-history.json
+
 # --- Query scratch & exports ---
 scripts/ns_export/.last_query.sql
 scripts/ns_export/*.csv
