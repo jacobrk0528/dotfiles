@@ -88,8 +88,10 @@ Overlay {
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_H)
                     root.selected = (root.selected + root.actions.length - 1) % root.actions.length;
-                else if (event.key === Qt.Key_L)
+                else if (event.key === Qt.Key_L || event.key === Qt.Key_Tab)
                     root.selected = (root.selected + 1) % root.actions.length;
+                else if (event.key === Qt.Key_Backtab)
+                    root.selected = (root.selected + root.actions.length - 1) % root.actions.length;
             }
         }
 
