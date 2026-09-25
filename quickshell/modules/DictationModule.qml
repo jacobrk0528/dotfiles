@@ -7,7 +7,7 @@ import "../services"
 BarModule {
     id: root
 
-    readonly property bool listening: Dictation.state === "listening" || Dictation.state === "teaching"
+    readonly property bool listening: Dictation.state === "listening" || Dictation.state === "teaching" || Dictation.state === "no-input"
 
     icon: {
         switch (Dictation.state) {
@@ -15,6 +15,8 @@ BarModule {
             return "󰍬";
         case "teaching":
             return "󰑫";
+        case "no-input":
+            return "󰍭";
         case "transcribing":
             return "󰔟";
         default:
@@ -28,6 +30,8 @@ BarModule {
             return "listening";
         case "teaching":
             return "teaching";
+        case "no-input":
+            return "no audio - mic muted?";
         case "transcribing":
             return "transcribing";
         default:
@@ -41,12 +45,16 @@ BarModule {
             return Theme.red;
         case "teaching":
             return Theme.purple;
+        case "no-input":
+            return Theme.orange;
         default:
             return Theme.yellow;
         }
     }
 
-    tooltipText: root.listening ? "Dictation is recording" : "Transcribing what you said"
+    tooltipText: Dictation.state === "no-input"
+        ? "Recording, but the mic is delivering silence - check mute"
+        : root.listening ? "Dictation is recording" : "Transcribing what you said"
 
     // Breathe while the mic is open, so it reads as live rather than stuck.
     SequentialAnimation {

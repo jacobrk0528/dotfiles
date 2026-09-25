@@ -9,7 +9,7 @@ import QtQuick
 Singleton {
     id: root
 
-    // "idle" | "listening" | "teaching" | "transcribing"
+    // "idle" | "listening" | "teaching" | "no-input" | "transcribing"
     readonly property string state: adapter.state
     readonly property bool active: root.state !== "" && root.state !== "idle"
 
