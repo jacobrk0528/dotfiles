@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# Resolve which connectors the two side monitors are on, and place them.
+#
+# Why this exists: the left and right monitors are the same Sceptre model and
+# report byte-identical EDID -- same make, model, and the placeholder serial
+# 0x00000001. `hyprctl monitors` shows no field that differs between them, so
+# hyprland's desc: selector matches BOTH and stacks them at one position
+# (mirrored). Addressing them by connector name instead works until a driver
+# upgrade renumbers the connectors, which is how DP-7/DP-8 silently became
+# DP-5/DP-6 and dropped both rules.
+#
+# So: find the pair dynamically (they are the connected monitors that are not
+# the two Acers, which DO have unique serials), sort them, and assign sides.
+# Because the two are genuinely indistinguishable, which one is physically left
+# cannot be detected -- it is remembered in FLIP below and toggled by
+# SUPER+CTRL+M (hypr/scripts/swap-monitors).
+#
+# The resolved connectors are cached so hyprland.lua can emit the monitor rules
+# at parse time; that is what makes the placement survive `hyprctl reload`.
+set -uo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
+STATE="$STATE_DIR/side-monitors.conf"
+
+LEFT_POS="-1920x0"
+RIGHT_POS="1920x0"
+MODE="1920x1080@60"
+
+# Scratch positions used while shuffling; well clear of every real slot
+# (-1920..0 left, 0..1920 middle/bottom, 1920..3840 right) and of each other.
+PARK_A="-5760x0"
+PARK_B="-3840x0"
+
+# The monitors that are NOT side monitors. These have unique serials, so
+# hyprland.lua addresses them with desc: directly. Keep in sync with it.
+NOT_SIDE=(
+	"Acer Technologies XB273 GX 0x15205CF0"      # Middle
+	"Acer Technologies PM161Q C 25230110E4HA1"   # Bottom
+)
+
+mkdir -p "$STATE_DIR"
+FLIP=0
+# shellcheck source=/dev/null
+[ -f "$STATE" ] && . "$STATE"
+
+usage() { echo "usage: side-monitors [--flip] [--quiet]" >&2; exit 1; }
+
+QUIET=0
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--flip)  FLIP=$(( 1 - FLIP )) ;;
+		--quiet) QUIET=1 ;;
+		*) usage ;;
+	esac
+	shift
+done
+
+say() { [ "$QUIET" -eq 1 ] || echo "side-monitors: $*"; }
+
+# --- find the pair ------------------------------------------------------
+# jq builds a "name<TAB>description" list; anything matching NOT_SIDE is
+# dropped. Sorted with -V so DP-10 lands after DP-9 rather than after DP-1.
+readarray -t pair < <(
+	hyprctl monitors all -j 2>/dev/null \
+	| jq -r '.[] | select(.disabled == false) | "\(.name)\t\(.description)"' \
+	| {
+		while IFS=$'\t' read -r name desc; do
+			for skip in "${NOT_SIDE[@]}"; do
+				[ "$desc" = "$skip" ] && continue 2
+			done
+			printf '%s\n' "$name"
+		done
+	} | sort -V
+)
+
+if [ "${#pair[@]}" -ne 2 ]; then
+	say "expected 2 side monitors, found ${#pair[@]} (${pair[*]:-none}) -- leaving layout alone" >&2
+	exit 1
+fi
+
+if [ "$FLIP" -eq 0 ]; then
+	LEFT=${pair[0]}; RIGHT=${pair[1]}
+else
+	LEFT=${pair[1]}; RIGHT=${pair[0]}
+fi
+
+# --- persist, so hyprland.lua can place them at parse time --------------
+cat > "$STATE" <<STATEEOF
+# Written by hypr/scripts/side-monitors. FLIP is the only value meant to be
+# edited by hand (or via SUPER+CTRL+M); LEFT/RIGHT are a resolved cache.
+FLIP=$FLIP
+LEFT=$LEFT
+RIGHT=$RIGHT
+STATEEOF
+
+# --- apply now ----------------------------------------------------------
+# hyprland.lua reads the cache above on its next parse, but apply immediately
+# so this takes effect at login without a reload.
+ev() { hyprctl eval "$1" >/dev/null 2>&1; }
+
+# Park both side monitors clear of everything before placing them. Setting the
+# final positions directly is not safe: when the two swap sides, the incoming
+# monitor lands on a slot the outgoing one has not vacated yet, and hyprland
+# notices the momentary overlap and throws "Monitor DP-N overlaps with other
+# monitor(s)" on screen. Parking first means no intermediate state collides.
+ev "hl.monitor({ output = \"$LEFT\",  mode = \"$MODE\", position = \"$PARK_A\", scale = 1 })"
+ev "hl.monitor({ output = \"$RIGHT\", mode = \"$MODE\", position = \"$PARK_B\", scale = 1 })"
+
+ev "hl.monitor({ output = \"$LEFT\",  mode = \"$MODE\", position = \"$LEFT_POS\",  scale = 1 })"
+ev "hl.monitor({ output = \"$RIGHT\", mode = \"$MODE\", position = \"$RIGHT_POS\", scale = 1 })"
+
+# Clear any overlap warning raised by an earlier run that did collide.
+hyprctl dismissnotify >/dev/null 2>&1
+
+for ws in 1 4; do ev "hl.workspace_rule({ workspace = \"$ws\", monitor = \"$LEFT\" })";  done
+for ws in 3 6; do ev "hl.workspace_rule({ workspace = \"$ws\", monitor = \"$RIGHT\" })"; done
+
+# Rules only bind workspaces created after them; ones that already exist stay
+# on whichever monitor they were last on.
+sleep 0.5
+for ws in 1 4; do ev "hl.dispatch(hl.dsp.workspace.move({ workspace = $ws, monitor = \"$LEFT\" }))";  done
+for ws in 3 6; do ev "hl.dispatch(hl.dsp.workspace.move({ workspace = $ws, monitor = \"$RIGHT\" }))"; done
+
+say "left=$LEFT right=$RIGHT (flip=$FLIP)"

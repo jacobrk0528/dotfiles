@@ -30,8 +30,39 @@ hl.env("LC_ALL",         "en_US.UTF-8")
 local hostname = io.popen("cat /etc/hostname"):read("*l")
 
 hl.monitor({ output = "desc:Acer Technologies XB273 GX 0x15205CF0", mode = "1920x1080@60", position = "0x0", scale = 1 })		-- Middle
-hl.monitor({ output = "DP-7", mode = "1920x1080@60", position = "1920x0", scale = 1 })											-- Right
-hl.monitor({ output = "DP-8", mode = "1920x1080@60", position = "-1920x0", scale = 1 })											-- Left
+-- Left and Right are the two Sceptres. They report byte-identical EDID -- same
+-- make, model, and the placeholder serial 0x00000001 -- so a desc: selector
+-- matches BOTH and stacks them at one position (they came up mirrored that
+-- way). Connector names do distinguish them, but a driver upgrade renumbered
+-- DP-7/DP-8 to DP-5/DP-6 and silently dropped both rules.
+--
+-- So hypr/scripts/side-monitors resolves the pair at login (they are the
+-- connected monitors that are not the two Acers, which DO have unique serials)
+-- and caches the connectors below. Reading that cache here -- rather than
+-- applying only via hyprctl -- is what makes the placement survive a reload.
+-- Which one is physically left cannot be detected; SUPER+CTRL+M flips it.
+local side = { LEFT = nil, RIGHT = nil }
+do
+    local f = io.open(os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state"))
+    if f then f:close() end
+    local path = (os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state"))
+                 .. "/hypr/side-monitors.conf"
+    local fh = io.open(path)
+    if fh then
+        for line in fh:lines() do
+            local k, v = line:match("^(%u+)=(.+)$")
+            if k == "LEFT" or k == "RIGHT" then side[k] = v end
+        end
+        fh:close()
+    end
+end
+
+-- No cache yet (first ever boot): leave them auto-placed. The autostart call to
+-- side-monitors writes the cache and fixes the layout a moment later.
+if side.LEFT and side.RIGHT then
+    hl.monitor({ output = side.RIGHT, mode = "1920x1080@60", position = "1920x0", scale = 1 })   -- Right
+    hl.monitor({ output = side.LEFT,  mode = "1920x1080@60", position = "-1920x0", scale = 1 })  -- Left
+end
 hl.monitor({ output = "desc:Acer Technologies PM161Q C 25230110E4HA1", mode = "1920x1080@60", position = "0x1080", scale = 1 }) -- Bottom
 
 -----------------------
@@ -46,14 +77,13 @@ local fileManager = "/home/jkrebs/dotfiles/scripts/yazi-window"
 -- Kept alongside yazi for the things yazi has no native answer to: sftp:// and
 -- smb:// browsing.
 local dolphin     = "dolphin"
--- Wrapped in a systemd cgroup scope with a memory ceiling: on this machine's 123GB RAM
--- Chrome's own memory-pressure monitor almost never fires (it watches system-wide free
--- memory), so leaking tabs (BigQuery/Dataform especially) balloon to 8-12GB before the
--- renderer becomes unusable. MemoryHigh forces real reclaim/pressure early (kernel throttles,
--- Chrome should start discarding/purging) well before that; MemoryMax is a hard backstop
--- covering the WHOLE browser (all windows/tabs share one scope), set loose so it only
--- protects against a total runaway rather than killing the whole session over one bad tab.
-local browser     = 'systemd-run --user --scope --collect -p MemoryHigh=8G -p MemoryMax=24G -- google-chrome-stable --profile-picker --js-flags="--max-old-space-size=4096"'
+-- Wrapped in a systemd cgroup scope as a backstop against a total runaway. NOTE: the
+-- ballooning BigQuery/Dataform tabs (8GB+ per renderer, then GC lock-up) turned out to be
+-- Dark Reader re-styling the Cloud Console on every DOM mutation, not browser memory
+-- policy; fix that by disabling Dark Reader on console.cloud.google.com. MemoryHigh is
+-- deliberately loose: the scope covers the WHOLE browser (all windows/tabs), and a low
+-- value throttles every tab via kernel reclaim long before any single leaker is helped.
+local browser     = 'systemd-run --user --scope --collect -p MemoryHigh=32G -p MemoryMax=64G -- google-chrome-stable --profile-picker --js-flags="--max-old-space-size=4096"'
 local slack       = "slack"
 local btop        = "ghostty --title=btop -e bash -c 'btop'"
 
@@ -66,6 +96,9 @@ local btop        = "ghostty --title=btop -e bash -c 'btop'"
 hl.on("hyprland.start", function()
     hl.exec_cmd("qs")
     hl.exec_cmd("hypridle")
+    -- Re-resolve which connectors the two identical Sceptres are on and place
+    -- them. Self-corrects after a driver upgrade renumbers the connectors.
+    hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/hypr/scripts/side-monitors --quiet")
     hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/scripts/start_tmux_sessions.sh")
     -- Placement is done by the script, not by exec workspace hints: the hint
     -- targets the next window to map rather than the process launched, and a
@@ -227,6 +260,16 @@ hl.window_rule({ name = "yazi-float",  match = { class = "com\\.jkrebs\\.yazi" }
 hl.window_rule({ name = "yazi-size",   match = { class = "com\\.jkrebs\\.yazi" }, size   = "1344 756" })
 hl.window_rule({ name = "yazi-center", match = { class = "com\\.jkrebs\\.yazi" }, center = true })
 
+-- Waydroid, plain or nested in cage-xtmapper (~/.local/bin/waydroid-keymapper,
+-- whose window reports class "wlroots"). Android fixes its resolution to the
+-- window size at session start, so float both at a set size rather than let
+-- tiling resize them afterwards and strand Android in a corner.
+for _, m in ipairs({ { "waydroid", { class = "[Ww]aydroid.*" } }, { "cage-xtmapper", { class = "wlroots" } } }) do
+    hl.window_rule({ name = m[1] .. "-float",  match = m[2], float  = true })
+    hl.window_rule({ name = m[1] .. "-size",   match = m[2], size   = "1600 900" })
+    hl.window_rule({ name = m[1] .. "-center", match = m[2], center = true })
+end
+
 ------------------------------
 ---- WORKSPACE ASSIGNMENTS ----
 ------------------------------
@@ -241,17 +284,17 @@ hl.window_rule({ name = "yazi-center", match = { class = "com\\.jkrebs\\.yazi" }
 
 local workspace_configs = {
     optimus = {
-		-- Left
-        { workspace = "1",  monitor = "DP-8" },
-        { workspace = "4",  monitor = "DP-8" },
+		-- Left (resolved connector, see the MONITORS block)
+        { workspace = "1",  monitor = side.LEFT },
+        { workspace = "4",  monitor = side.LEFT },
 
 		-- Middle
         { workspace = "2",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
         { workspace = "5",  monitor = "desc:Acer Technologies XB273 GX 0x15205CF0" },
 
-		-- Right
-        { workspace = "3",  monitor = "DP-7" },
-        { workspace = "6",  monitor = "DP-7" },
+		-- Right (resolved connector, see the MONITORS block)
+        { workspace = "3",  monitor = side.RIGHT },
+        { workspace = "6",  monitor = side.RIGHT },
 
 		-- Bottom
         { workspace = "7",  monitor = "desc:Acer Technologies PM161Q C 25230110E4HA1" },
@@ -269,7 +312,9 @@ local workspace_configs = {
 
 if workspace_configs[hostname] then
     for _, config in ipairs(workspace_configs[hostname]) do
-        hl.workspace_rule(config)
+        -- side.LEFT/RIGHT are nil on a first-ever boot; side-monitors applies
+        -- those two pairs itself once it has resolved them.
+        if config.monitor then hl.workspace_rule(config) end
     end
 end
 
@@ -364,10 +409,11 @@ hl.bind(mainMod .. " + Y",         hl.dsp.global("quickshell:homeassistant"))
 
 
 -- Audio keybinds
-hl.bind(mainMod .. " + CTRL + 1", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
-hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo"))
-hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("pactl set-default-sink alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo")) -- Pebble
-hl.bind(mainMod .. " + CTRL + 5", hl.dsp.exec_cmd("pactl set-default-sink bluez_output.04_C8_B0_2F_27_CD.1")) -- Pixel earbuds
+-- Switch to the sink; if it's already the active sink, toggle mute instead.
+hl.bind(mainMod .. " + CTRL + 1", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
+hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo"))
+hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo")) -- Pebble
+hl.bind(mainMod .. " + CTRL + 5", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh bluez_output.04_C8_B0_2F_27_CD.1")) -- Pixel earbuds
 
 
 -- Focus with vim keys
@@ -392,6 +438,24 @@ for i = 1, 10 do
     hl.bind(mainMod .. " + SHIFT + " .. key,   hl.dsp.window.move({ workspace = i }))
 end
 
+-- Toggle the physical monitor that a workspace key lives on off/on (DPMS),
+-- so e.g. SUPER+ALT+3 blanks whichever monitor SUPER+3 would switch to.
+local function toggle_monitor_dpms(workspace)
+    return function ()
+        local ws = hl.get_workspace(workspace)
+        if not ws or not ws.monitor then
+            hl.notification.create({ text = "Workspace '" .. tostring(workspace) .. "' doesn't exist", timeout = 3000 })
+            return
+        end
+
+        hl.dispatch(hl.dsp.dpms({ mode = "toggle", monitor = ws.monitor.name }))
+    end
+end
+
+for _, key in ipairs({ 1, 2, 3, 7 }) do
+    hl.bind(mainMod .. " + ALT + " .. key, toggle_monitor_dpms(key))
+end
+
 -- Special workspaces
 hl.bind(mainMod .. " + semicolon",        hl.dsp.workspace.toggle_special("logs"))
 hl.bind(mainMod .. " + apostrophe",       hl.dsp.exec_cmd("/home/jkrebs/dotfiles/quickshell/scripts/media-scratchpad"))
@@ -414,7 +478,8 @@ hl.bind("Delete", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictat
 hl.bind(mainMod .. " + Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh teach-start"))
 hl.bind(mainMod .. " + Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh stop"), { release = true })
 
--- Swap DP-7 / DP-8 (KVM sometimes swaps which port each monitor lands on)
+-- Swap the Left / Right monitor rules (the KVM can swap which of the two
+-- identical Sceptres sits behind the EDID-reporting adapter)
 hl.bind(mainMod .. " + CTRL + M", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/swap-monitors"))
 
 -- Mouse move/resize
