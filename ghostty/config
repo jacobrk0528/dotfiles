@@ -17,6 +17,12 @@ window-padding-y = 6
 background-opacity = 0.75
 background-blur-radius = 20
 
+# macOS native fullscreen moves the window to its own Space, which has a solid
+# black backdrop instead of the wallpaper - so the transparency above composites
+# over nothing and the window just looks flat gray. Non-native fullscreen keeps
+# the window in the current Space, so the desktop still shows through.
+macos-non-native-fullscreen = true
+
 # The physical Cmd key is remapped to Option at the OS level (Karabiner),
 # so this makes it send proper Alt/Meta escape sequences to the shell
 # (Alt+B/Alt+F word-jump, Alt+Backspace, etc), matching Linux Alt behavior.
