@@ -60,3 +60,5 @@ export PATH="$PATH:$HOME/.config/composer/vendor/bin"
 export REPORTTIME=30
 
 export PATH="$PATH:$HOME/dotfiles/hypr/scripts"
+
+. "$HOME/.local/share/../bin/env"
