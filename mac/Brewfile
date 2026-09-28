@@ -1,13 +1,13 @@
 # --- Taps ---
 tap "microsoft/mssql-release"
 tap "manaflow-ai/cmux"
-tap "dimentium/autoraise"
+tap "koekeishiya/formulae"
 
 # --- CLI Tools ---
 brew "bind"
 brew "biome"
-# Focus-follows-mouse (config: mac/autoraise/config)
-brew "autoraise", restart_service: :changed
+# Tiling WM + focus-follows-mouse (config: mac/yabai/yabairc)
+brew "koekeishiya/formulae/yabai"
 brew "btop"
 brew "bun"
 brew "cloc"

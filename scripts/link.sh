@@ -42,7 +42,7 @@ link_file "oh-my-zsh/jkrebs.zsh-theme"   "$HOME/.oh-my-zsh/custom/themes/jkrebs.
 
 # macOS-only
 if [[ "$(uname)" == "Darwin" ]]; then
-    link_file "mac/autoraise" "$HOME/.config/AutoRaise"
+    link_file "mac/yabai" "$HOME/.config/yabai"
 fi
 
 # Linux-only (Wayland / Arch)

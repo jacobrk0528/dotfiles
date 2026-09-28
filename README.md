@@ -69,12 +69,16 @@ What does carry over:
     already applies everywhere; `background-blur-radius` (macOS-only key, ignored on Linux) was
     added so the terminal gets a native frosted-glass blur instead of a flat translucent panel,
     since there's no compositor blurring it for us there.
-*   **Focus follows mouse**: [AutoRaise](https://github.com/sbmpost/AutoRaise) (Brewfile, run
-    via `brew services`) focuses and raises whichever window is under the cursor, like
-    Hyprland's `follow_mouse`. Config lives in `mac/autoraise/config` (linked to
-    `~/.config/AutoRaise`); run `brew services restart autoraise` after editing. It needs
-    Accessibility permission, and that grant may have to be toggled off and on after a
-    `brew upgrade`. Hold ctrl while moving the mouse to leave focus where it is.
+*   **Tiling + focus follows mouse**: [yabai](https://github.com/asmvik/yabai) tiles like
+    Hyprland's dwindle (even splits, 12px outer / 6px inner gaps) and focuses the window under
+    the cursor like `follow_mouse`. Drag a window onto another to split next to it or swap;
+    fn+drag moves, fn+right-drag resizes. Config is `mac/yabai/yabairc` (linked to
+    `~/.config/yabai`); run `yabai --restart-service` after editing. Runs with SIP on, and needs
+    Accessibility permission (re-grant it after a `brew upgrade` if it stops working).
+*   **GlassBar**: `mac/glassbar/` is a small Swift app: a full-width Liquid Glass bar at the
+    bottom of every screen with yabai's spaces on the left and the Dock's pinned + running apps
+    in the middle. The real Dock is auto-hidden; pin apps by dragging them into it. Run
+    `mac/glassbar/install.sh` after editing `GlassBar.swift` to rebuild and restart it.
 *   Everything else shared between platforms (`nvim`, `ghostty`, `tmux`, `zshrc`, `yazi`,
     `oh-my-zsh`, `scripts/ntfy`, `gitconfig`, `sqlfluff`) is linked identically by `scripts/link.sh`.
 

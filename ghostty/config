@@ -23,12 +23,11 @@ background-blur-radius = 20
 # the window in the current Space, so the desktop still shows through.
 macos-non-native-fullscreen = true
 
-# The physical Cmd key is remapped to Option at the OS level (Karabiner),
-# so this makes it send proper Alt/Meta escape sequences to the shell
+# Makes Option send proper Alt/Meta escape sequences to the shell
 # (Alt+B/Alt+F word-jump, Alt+Backspace, etc), matching Linux Alt behavior.
 macos-option-as-alt = true
 
-# Linux-style copy/paste, bound natively so it works regardless of Karabiner
+# Linux-style copy/paste
 keybind = ctrl+shift+v=paste_from_clipboard
 keybind = ctrl+shift+c=copy_to_clipboard
 # with sensible defaults for all options. Users should only need to set

@@ -1,0 +1,48 @@
+#!/usr/bin/env sh
+# yabai — tiling with gaps, close to Hyprland's dwindle layout.
+# Linked to ~/.config/yabai by scripts/link.sh. Apply changes: yabai --restart-service
+# Runs without the scripting addition (SIP stays on), so only tiling,
+# padding and mouse drag/drop are used here.
+
+# Binary-split tiling, new windows split off the focused one (like dwindle)
+yabai -m config layout                bsp
+yabai -m config window_placement      second_child
+# Re-split evenly whenever a window is added or removed, so a new or
+# torn-off window always lands 50/50 instead of keeping a stale ratio
+yabai -m config auto_balance          on
+yabai -m config split_ratio           0.50
+
+# Same as Hyprland's gaps_out = 12 / gaps_in = 6
+yabai -m config top_padding           12
+yabai -m config bottom_padding        12
+yabai -m config left_padding          12
+yabai -m config right_padding         12
+yabai -m config window_gap            6
+
+# Drag a window by its title bar and drop it on another: near an edge it
+# splits to that side, in the middle the two swap places.
+yabai -m config mouse_drop_action     swap
+# fn + drag moves a window, fn + right-drag resizes it, from anywhere inside it
+yabai -m config mouse_modifier        fn
+yabai -m config mouse_action1         move
+yabai -m config mouse_action2         resize
+
+# Focus follows mouse, like Hyprland's follow_mouse. Replaces AutoRaise,
+# which stopped reacting once yabai was managing windows.
+yabai -m config focus_follows_mouse   autoraise
+yabai -m config mouse_follows_focus   off
+
+# Leave settings panes and small utility windows floating
+yabai -m rule --add app="^(System Settings|System Information|Calculator|Archive Utility|Finder)$" manage=off
+
+# GlassBar (mac/glassbar) sits along the bottom of every screen: reserve its
+# 60px + 8px margin so tiled windows stop above it, never tile the bar itself,
+# and poke it to redraw its space buttons when spaces or windows change.
+yabai -m config external_bar all:0:68
+yabai -m rule --add app="^GlassBar$" manage=off
+for event in space_changed display_changed space_created space_destroyed window_created window_destroyed; do
+    yabai -m signal --add event=$event label=glassbar_$event action="pkill -USR1 -x GlassBar"
+done
+
+# Apply the rules above to windows that were already open
+yabai -m rule --apply

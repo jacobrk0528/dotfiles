@@ -34,7 +34,7 @@ export HOMEBREW_ACCEPT_EULA=Y
 # Homebrew refuses to install from a tap it hasn't been told to trust yet.
 # Tap and trust ours explicitly before `brew bundle` pulls from them, or
 # every formula/cask in the Brewfile silently fails.
-for tap in microsoft/mssql-release manaflow-ai/cmux dimentium/autoraise; do
+for tap in microsoft/mssql-release manaflow-ai/cmux koekeishiya/formulae; do
     brew tap "$tap"
     brew trust "$tap"
 done
@@ -68,8 +68,8 @@ echo "⚙️  Starting services..."
 brew services start postgresql@17
 brew services start mariadb
 brew services start valkey
-# Focus-follows-mouse, like Hyprland's follow_mouse. Needs Accessibility (see end).
-brew services start autoraise
+# Tiling + focus-follows-mouse, like Hyprland. Needs Accessibility (see end).
+yabai --start-service || true
 
 # 6. PostgreSQL Setup
 if ! psql -U "$USER" -c '\q' &> /dev/null 2>&1; then
@@ -106,12 +106,19 @@ if ! command -v claude &> /dev/null; then
     curl -fsSL https://claude.ai/install.sh | bash
 fi
 
-# 10. Wallpaper — mirrors whatever's active on the Linux box (quickshell
+# 10. GlassBar — full-width bar along the bottom of each screen, replacing
+# the Dock visually, so the real Dock only slides up at the bottom edge
+echo "🧊 Installing GlassBar..."
+"$DOTFILES_DIR/mac/glassbar/install.sh"
+defaults write com.apple.dock autohide -bool true
+killall Dock
+
+# 11. Wallpaper — mirrors whatever's active on the Linux box (quickshell
 # itself doesn't run here; see mac/set-wallpaper.sh)
 "$DOTFILES_DIR/mac/set-wallpaper.sh" || echo "🖼️  Skipped wallpaper (run mac/set-wallpaper.sh manually later)"
 
 echo "✅ macOS setup complete!"
 echo "   - Run 'pecl install redis' to add PHP Redis extension"
 echo "   - Open Tailscale from Applications to connect to your network"
-echo "   - Grant Accessibility to autoraise (System Settings → Privacy & Security → Accessibility),"
-echo "     then: brew services restart autoraise"
+echo "   - Grant Accessibility to yabai (System Settings → Privacy & Security → Accessibility),"
+echo "     then: yabai --restart-service"
