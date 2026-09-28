@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# browser-ext — install/update the unpacked browser extensions in ~/dotfiles/browser-extensions.
+#
+#   browser-ext              -> list extensions and their paths
+#   browser-ext install NAME -> copy NAME's path to the clipboard and open the
+#                               extensions page in every installed Chromium browser
+#   browser-ext update       -> git pull dotfiles, then reload each extension on its card
+#
+# Chromium browsers don't allow scripted installs of unpacked extensions, so "install"
+# is a one-time "Load unpacked" per browser profile. After that the browser loads the
+# extension straight from dotfiles, so a pull + reload is all an update needs.
+set -euo pipefail
+
+EXT_DIR="$HOME/dotfiles/browser-extensions"
+
+copy() {
+  if command -v pbcopy >/dev/null; then pbcopy
+  elif command -v wl-copy >/dev/null && [ -n "${WAYLAND_DISPLAY:-}" ]; then wl-copy
+  elif command -v xclip >/dev/null; then xclip -selection clipboard
+  else cat >/dev/null; return 1; fi
+}
+
+# Open chrome://extensions-style pages in whichever browsers exist.
+open_ext_pages() {
+  local opened=0
+  if [[ "$(uname)" == "Darwin" ]]; then
+    local app scheme
+    for pair in "Google Chrome:chrome" "Brave Browser:brave" "Microsoft Edge:edge" "Vivaldi:vivaldi" "Arc:chrome"; do
+      app=${pair%%:*} scheme=${pair##*:}
+      if [ -d "/Applications/$app.app" ]; then
+        open -a "$app" "$scheme://extensions" && echo "Opened $app" && opened=1
+      fi
+    done
+  else
+    local bin scheme
+    for pair in google-chrome-stable:chrome google-chrome:chrome chromium:chrome brave:brave brave-browser:brave \
+                microsoft-edge-stable:edge vivaldi-stable:vivaldi; do
+      bin=${pair%%:*} scheme=${pair##*:}
+      if command -v "$bin" >/dev/null; then
+        (nohup "$bin" "$scheme://extensions" >/dev/null 2>&1 &) && echo "Opened $bin" && opened=1
+      fi
+    done
+  fi
+  [ "$opened" = 1 ] || echo "No Chromium browser found; open <browser>://extensions manually."
+}
+
+list() {
+  for d in "$EXT_DIR"/*/; do
+    [ -f "$d/manifest.json" ] || continue
+    printf '%-16s %s\n' "$(basename "$d")" "${d%/}"
+  done
+}
+
+case "${1:-}" in
+  install)
+    name=${2:?usage: browser-ext install NAME}
+    path="$EXT_DIR/$name"
+    [ -f "$path/manifest.json" ] || { echo "No extension '$name' in $EXT_DIR" >&2; list >&2; exit 1; }
+    if printf '%s' "$path" | copy; then echo "Copied path: $path"; else echo "Path: $path"; fi
+    open_ext_pages
+    cat <<EOF
+
+In each browser that opened:
+  1. Turn on "Developer mode" (top right)
+  2. Click "Load unpacked" and paste the path (Cmd/Ctrl+Shift+G on macOS, Ctrl+L on Linux)
+EOF
+    ;;
+  update)
+    git -C "$HOME/dotfiles" pull --ff-only
+    echo "Now click the reload icon on each extension card at <browser>://extensions."
+    ;;
+  ""|list) list ;;
+  *) sed -n '2,11p' "$0"; exit 1 ;;
+esac

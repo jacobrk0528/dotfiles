@@ -46,6 +46,7 @@ Since some parts of a system cannot (or should not) be automated, follow this ch
 *   **Supermaven**: Re-authenticate in Neovim/Terminal.
 *   **Claude Code**: Run `claude` and log in (auto-installed by `mac/setup.sh`; on Arch, install via `curl -fsSL https://claude.ai/install.sh | bash`).
 *   **Slack/Chrome**: Manual login required.
+*   **Browser extensions**: Run `browser-ext install chat-export` and "Load unpacked" once per browser profile.
 
 ---
 
@@ -118,6 +119,8 @@ PAM side of the conversation.
     generated from it. Linked to `~/.tmux`.
 *   `scripts/`: Shared setup and helper scripts — symlinking, greeter install, tmux session
     startup, NetSuite query export.
+*   `browser-extensions/`: Unpacked Chromium extensions (Chrome, Brave, Edge…), managed with
+    `scripts/browser-ext`. See each extension's README.
 *   `zshrc`: Shell configuration and aliases.
 *   `arch/`: Arch-specific package lists and setup scripts.
 *   `nixos/`: NixOS configuration modules and flakes.

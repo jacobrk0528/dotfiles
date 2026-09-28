@@ -36,6 +36,7 @@ link_file "tmux.conf"   "$HOME/.tmux.conf"
 link_file "zshrc"       "$HOME/.zshrc"
 link_file "scripts/ntfy" "$HOME/.local/bin/ntfy"
 link_file "scripts/bqtui/bqtui" "$HOME/.local/bin/bqtui"
+link_file "scripts/browser-ext" "$HOME/.local/bin/browser-ext"
 link_file "oh-my-zsh/aliases.zsh"        "$HOME/.oh-my-zsh/custom/aliases.zsh"
 link_file "oh-my-zsh/jkrebs.zsh-theme"   "$HOME/.oh-my-zsh/custom/themes/jkrebs.zsh-theme"
 
