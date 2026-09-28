@@ -1,10 +1,13 @@
 # --- Taps ---
 tap "microsoft/mssql-release"
 tap "manaflow-ai/cmux"
+tap "dimentium/autoraise"
 
 # --- CLI Tools ---
 brew "bind"
 brew "biome"
+# Focus-follows-mouse (config: mac/autoraise/config)
+brew "autoraise", restart_service: :changed
 brew "btop"
 brew "bun"
 brew "cloc"

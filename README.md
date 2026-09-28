@@ -69,6 +69,12 @@ What does carry over:
     already applies everywhere; `background-blur-radius` (macOS-only key, ignored on Linux) was
     added so the terminal gets a native frosted-glass blur instead of a flat translucent panel,
     since there's no compositor blurring it for us there.
+*   **Focus follows mouse**: [AutoRaise](https://github.com/sbmpost/AutoRaise) (Brewfile, run
+    via `brew services`) focuses and raises whichever window is under the cursor, like
+    Hyprland's `follow_mouse`. Config lives in `mac/autoraise/config` (linked to
+    `~/.config/AutoRaise`); run `brew services restart autoraise` after editing. It needs
+    Accessibility permission, and that grant may have to be toggled off and on after a
+    `brew upgrade`. Hold ctrl while moving the mouse to leave focus where it is.
 *   Everything else shared between platforms (`nvim`, `ghostty`, `tmux`, `zshrc`, `yazi`,
     `oh-my-zsh`, `scripts/ntfy`, `gitconfig`, `sqlfluff`) is linked identically by `scripts/link.sh`.
 

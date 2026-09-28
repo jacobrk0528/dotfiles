@@ -40,6 +40,11 @@ link_file "scripts/browser-ext" "$HOME/.local/bin/browser-ext"
 link_file "oh-my-zsh/aliases.zsh"        "$HOME/.oh-my-zsh/custom/aliases.zsh"
 link_file "oh-my-zsh/jkrebs.zsh-theme"   "$HOME/.oh-my-zsh/custom/themes/jkrebs.zsh-theme"
 
+# macOS-only
+if [[ "$(uname)" == "Darwin" ]]; then
+    link_file "mac/autoraise" "$HOME/.config/AutoRaise"
+fi
+
 # Linux-only (Wayland / Arch)
 if [[ "$(uname)" != "Darwin" ]]; then
     link_file "hypr"          "$HOME/.config/hypr"

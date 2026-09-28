@@ -34,7 +34,7 @@ export HOMEBREW_ACCEPT_EULA=Y
 # Homebrew refuses to install from a tap it hasn't been told to trust yet.
 # Tap and trust ours explicitly before `brew bundle` pulls from them, or
 # every formula/cask in the Brewfile silently fails.
-for tap in microsoft/mssql-release manaflow-ai/cmux; do
+for tap in microsoft/mssql-release manaflow-ai/cmux dimentium/autoraise; do
     brew tap "$tap"
     brew trust "$tap"
 done
@@ -68,6 +68,8 @@ echo "⚙️  Starting services..."
 brew services start postgresql@17
 brew services start mariadb
 brew services start valkey
+# Focus-follows-mouse, like Hyprland's follow_mouse. Needs Accessibility (see end).
+brew services start autoraise
 
 # 6. PostgreSQL Setup
 if ! psql -U "$USER" -c '\q' &> /dev/null 2>&1; then
@@ -111,3 +113,5 @@ fi
 echo "✅ macOS setup complete!"
 echo "   - Run 'pecl install redis' to add PHP Redis extension"
 echo "   - Open Tailscale from Applications to connect to your network"
+echo "   - Grant Accessibility to autoraise (System Settings → Privacy & Security → Accessibility),"
+echo "     then: brew services restart autoraise"
