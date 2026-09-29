@@ -4,11 +4,11 @@
 # Why this exists rather than `exec` workspace hints in hyprland.lua:
 #
 #  1. A hint arms a rule for the NEXT window that maps, not for the process
-#     being launched. Slack and Chrome take seconds while ghostty is instant,
+#     being launched. Slack and Brave take seconds while ghostty is instant,
 #     so the rules land on the wrong windows.
 #  2. Far worse: a *visible* special workspace captures every window opened
 #     afterwards. launch_logs.sh's windows are rule-assigned to special:logs,
-#     which leaves it showing, so Slack, Chrome and the terminal all opened
+#     which leaves it showing, so Slack, Brave and the terminal all opened
 #     inside the logs scratchpad.
 #
 # So: launch the log windows first, hide the scratchpads, launch everything
@@ -60,7 +60,7 @@ for m in json.load(sys.stdin):
 }
 
 # Like launch_to, but moves EVERY window that appeared, not just the first.
-# Chrome restores a profile's previous session alongside the window you asked
+# Brave restores a profile's previous session alongside the window you asked
 # for, so a personal profile can map two windows at once.
 launch_all_to() {
     local ws="$1" class_re="$2" title_re="$3"
@@ -132,29 +132,29 @@ launch_to "special:slack" '^slack$' "" slack &
 launch_to "special:btop" '^com\.jkrebs\.btop$' "" \
     ghostty --class=com.jkrebs.btop --title=btop -e bash -c btop &
 launch_to "2" '^com\.jkrebs\.term$' "" ghostty --class=com.jkrebs.term &
-# Chrome, twice: workspaces 3 and 1, both on the new tab page, both in the
-# Default profile (jkrebs@trinityroad.com). Naming the profile skips the
-# "Who's using Chrome?" picker, which is still what a manual launch gets.
-# The systemd scope caps Chrome's memory — see the `browser` comment in
+# Brave, twice: workspaces 3 and 1, both on the new tab page, both in the
+# Default ("Work") profile. Naming the profile skips the profile picker,
+# which is still what a manual launch gets.
+# The systemd scope caps Brave's memory — see the `browser` comment in
 # hyprland.lua for why. Only the first launch needs it: the second joins the
 # already-running process, and therefore the same cgroup.
-# Serialised, because all three share the google-chrome window class and two
+# Serialised, because all three share the brave-browser window class and two
 # in flight at once could not be told apart.
 (
-    launch_to "3" '^google-chrome$' "" bash -c \
-        'systemd-run --user --scope --collect -p MemoryHigh=8G -p MemoryMax=24G -- google-chrome-stable --profile-directory=Default --new-window "chrome://newtab" --js-flags="--max-old-space-size=4096"'
-    launch_to "1" '^google-chrome$' "" \
-        google-chrome-stable --profile-directory=Default --new-window "chrome://newtab"
-    # Personal profile. launch_all_to because this profile restores a session,
-    # so it maps its old windows alongside the new tab.
-    launch_all_to "5" '^google-chrome$' "" \
-        google-chrome-stable --profile-directory="Profile 1" --new-window "chrome://newtab"
+    launch_to "3" '^brave-browser$' "" bash -c \
+        'systemd-run --user --scope --collect -p MemoryHigh=8G -p MemoryMax=24G -- brave --profile-directory=Default --new-window "chrome://newtab" --js-flags="--max-old-space-size=4096"'
+    launch_to "1" '^brave-browser$' "" \
+        brave --profile-directory=Default --new-window "chrome://newtab"
+    # "Personal" profile. launch_all_to because this profile restores a
+    # session, so it maps its old windows alongside the new tab.
+    launch_all_to "5" '^brave-browser$' "" \
+        brave --profile-directory="Profile 1" --new-window "chrome://newtab"
 ) &
 wait
 
 # ── Phase 3: sweep ────────────────────────────────────────────────────
 # A window can still be captured if it maps while a scratchpad is briefly up.
-# Chrome is deliberately absent: its two windows are on different workspaces,
+# Brave is deliberately absent: its windows are on different workspaces,
 # so a class-wide sweep would drag them both to the same one.
 sweep() {
     local ws="$1" class_re="$2" title_re="${3:-}"

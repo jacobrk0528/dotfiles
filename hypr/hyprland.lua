@@ -83,7 +83,7 @@ local dolphin     = "dolphin"
 -- policy; fix that by disabling Dark Reader on console.cloud.google.com. MemoryHigh is
 -- deliberately loose: the scope covers the WHOLE browser (all windows/tabs), and a low
 -- value throttles every tab via kernel reclaim long before any single leaker is helped.
-local browser     = 'systemd-run --user --scope --collect -p MemoryHigh=32G -p MemoryMax=64G -- google-chrome-stable --profile-picker --js-flags="--max-old-space-size=4096"'
+local browser     = 'systemd-run --user --scope --collect -p MemoryHigh=32G -p MemoryMax=64G -- brave --profile-picker --js-flags="--max-old-space-size=4096"'
 local slack       = "slack"
 local btop        = "ghostty --title=btop -e bash -c 'btop'"
 
@@ -234,7 +234,8 @@ hl.device({ name = "epic-mouse-v1", sensitivity = -0.5 })
 ---------------------------
 
 -- make the quickshell surfaces pretty
-hl.layer_rule({ match = { namespace = "quickshell" },               blur = true })
+-- Top bar + dock. ignore_alpha keeps the blur inside their rounded corners.
+hl.layer_rule({ match = { namespace = "quickshell-bar" },           blur = true, ignore_alpha = 0.2 })
 hl.layer_rule({ match = { namespace = "quickshell-notifications" }, blur = true })
 hl.layer_rule({ match = { namespace = "quickshell-osd" },           blur = true })
 hl.layer_rule({ match = { namespace = "quickshell-overlay" },       blur = true })
