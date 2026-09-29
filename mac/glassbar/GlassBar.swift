@@ -2,6 +2,8 @@
 //
 //   left:   yabai spaces on that display (click to switch)
 //   center: Dock-pinned apps + other running apps (click to open/focus)
+//   right:  system stat cards (CPU, memory, GPU, temps, disk), coloured
+//           green / yellow / red against per-stat thresholds
 // Clock and battery stay in the menu bar.
 //
 // Pinned apps are read from the Dock's own pin list, so pin/unpin by dragging
@@ -10,6 +12,7 @@
 // yabai pokes it with SIGUSR1 (see mac/yabai/yabairc) when windows come and go.
 
 import AppKit
+import IOKit
 
 let barHeight: CGFloat = 78
 let barMargin: CGFloat = 8     // gap between the bar and the screen edges
@@ -184,6 +187,204 @@ enum Order {
     }
 }
 
+// MARK: - System stats
+
+/// One reading of everything the stat cards show. nil hides that card
+/// (e.g. no temperature sensors on an Intel Mac).
+struct StatSample {
+    var cpu: Double?       // percent busy, all cores
+    var mem: Double?       // percent used, Activity Monitor's "Memory Used"
+    var memDetail = ""
+    var gpu: Double?       // percent, IOAccelerator's "Device Utilization %"
+    var cpuTemp: Double?   // °C
+    var gpuTemp: Double?   // °C
+    var disk: Double?      // percent used on the boot volume
+    var diskDetail = ""
+}
+
+/// Samples CPU, memory, GPU, temperatures and disk. Not thread-safe; the
+/// controller calls it from one serial queue.
+final class StatSampler {
+    private var lastBusy: UInt64 = 0
+    private var lastTotal: UInt64 = 0
+    private let sensors = TempSensors()
+
+    func sample() -> StatSample {
+        var s = StatSample()
+        s.cpu = cpu()
+        (s.mem, s.memDetail) = memory()
+        s.gpu = gpu()
+        (s.cpuTemp, s.gpuTemp) = sensors.read()
+        (s.disk, s.diskDetail) = disk()
+        return s
+    }
+
+    /// Busy share since the previous call, from per-core tick counters.
+    private func cpu() -> Double? {
+        var cpuCount: natural_t = 0
+        var info: processor_info_array_t?
+        var infoCount: mach_msg_type_number_t = 0
+        guard host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO,
+                                  &cpuCount, &info, &infoCount) == KERN_SUCCESS,
+              let info
+        else { return nil }
+        defer {
+            vm_deallocate(mach_task_self_, vm_address_t(bitPattern: info),
+                          vm_size_t(Int(infoCount) * MemoryLayout<integer_t>.stride))
+        }
+
+        var busy: UInt64 = 0, total: UInt64 = 0
+        for i in 0..<Int(cpuCount) {
+            let base = Int(CPU_STATE_MAX) * i
+            func ticks(_ state: Int32) -> UInt64 { UInt64(UInt32(bitPattern: info[base + Int(state)])) }
+            let used = ticks(CPU_STATE_USER) + ticks(CPU_STATE_SYSTEM) + ticks(CPU_STATE_NICE)
+            busy += used
+            total += used + ticks(CPU_STATE_IDLE)
+        }
+        defer { lastBusy = busy; lastTotal = total }
+        // First call has no baseline; counters going backwards would underflow
+        guard lastTotal > 0, total > lastTotal, busy >= lastBusy else { return nil }
+        return Double(busy - lastBusy) / Double(total - lastTotal) * 100
+    }
+
+    /// App memory + wired + compressed, the same sum as Activity Monitor.
+    private func memory() -> (Double?, String) {
+        var stats = vm_statistics64()
+        var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &stats) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return (nil, "") }
+        let page = UInt64(vm_kernel_page_size)
+        let app = UInt64(stats.internal_page_count) - UInt64(min(stats.purgeable_count, stats.internal_page_count))
+        let used = (app + UInt64(stats.wire_count) + UInt64(stats.compressor_page_count)) * page
+        let total = ProcessInfo.processInfo.physicalMemory
+        return (Double(used) / Double(total) * 100, "Memory: \(gb(used)) of \(gb(total))")
+    }
+
+    /// Busiest GPU's utilisation. Readable without root on Apple Silicon.
+    private func gpu() -> Double? {
+        var iter: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOAccelerator"), &iter) == KERN_SUCCESS
+        else { return nil }
+        defer { IOObjectRelease(iter) }
+
+        var best: Double?
+        var service = IOIteratorNext(iter)
+        while service != 0 {
+            var props: Unmanaged<CFMutableDictionary>?
+            if IORegistryEntryCreateCFProperties(service, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+               let dict = props?.takeRetainedValue() as? [String: Any],
+               let perf = dict["PerformanceStatistics"] as? [String: Any],
+               let util = perf["Device Utilization %"] as? NSNumber {
+                best = max(best ?? 0, util.doubleValue)
+            }
+            IOObjectRelease(service)
+            service = IOIteratorNext(iter)
+        }
+        return best
+    }
+
+    private func disk() -> (Double?, String) {
+        let keys: Set<URLResourceKey> = [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey]
+        guard let v = try? URL(fileURLWithPath: "/").resourceValues(forKeys: keys),
+              let total = v.volumeTotalCapacity, total > 0,
+              let free = v.volumeAvailableCapacityForImportantUsage
+        else { return (nil, "") }
+        let used = UInt64(total) - UInt64(min(max(free, 0), Int64(total)))
+        return (Double(used) / Double(total) * 100, "Disk: \(gb(used)) of \(gb(UInt64(total)))")
+    }
+
+    private func gb(_ bytes: UInt64) -> String {
+        String(format: "%.1f GB", Double(bytes) / 1_073_741_824)
+    }
+}
+
+/// CPU and GPU die temperatures from the Apple Silicon sensor hub.
+///
+/// There is no public API for these. This is the IOHIDEventSystemClient
+/// route the Stats app uses, which needs no root. The functions are private,
+/// so they are looked up at runtime: if a macOS update removes or renames
+/// them, the temperature cards just hide instead of GlassBar failing to
+/// build or crashing. Sensor names vary by chip ("PMU tdie*" for CPU dies,
+/// "GPU MTR Temp Sensor*" for the GPU), hence the loose name matching.
+final class TempSensors {
+    private typealias CreateFn = @convention(c) (UnsafeRawPointer?) -> UnsafeMutableRawPointer?   // allocator
+    private typealias SetMatchingFn = @convention(c) (UnsafeMutableRawPointer, UnsafeRawPointer) -> Int32
+    private typealias CopyServicesFn = @convention(c) (UnsafeMutableRawPointer) -> UnsafeRawPointer?
+    private typealias CopyPropertyFn = @convention(c) (UnsafeRawPointer, UnsafeRawPointer) -> UnsafeRawPointer?
+    private typealias CopyEventFn = @convention(c) (UnsafeRawPointer, Int64, Int32, Int64) -> UnsafeRawPointer?
+    private typealias GetFloatFn = @convention(c) (UnsafeRawPointer, Int32) -> Double
+
+    private static let temperatureEvent: Int64 = 15   // kIOHIDEventTypeTemperature
+    private static let temperatureField = Int32(15 << 16)
+
+    private var copyProperty: CopyPropertyFn?
+    private var copyEvent: CopyEventFn?
+    private var getFloat: GetFloatFn?
+    private var cpuServices: [UnsafeRawPointer] = []
+    private var gpuServices: [UnsafeRawPointer] = []
+    private var client: UnsafeMutableRawPointer?   // owns the services below
+    private var servicesArray: CFArray?            // keeps the service refs alive
+
+    init() {
+        guard let iokit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW) else { return }
+        func load<T>(_ name: String, as _: T.Type) -> T? {
+            dlsym(iokit, name).map { unsafeBitCast($0, to: T.self) }
+        }
+        guard let create = load("IOHIDEventSystemClientCreate", as: CreateFn.self),
+              let setMatching = load("IOHIDEventSystemClientSetMatching", as: SetMatchingFn.self),
+              let copyServices = load("IOHIDEventSystemClientCopyServices", as: CopyServicesFn.self),
+              let copyProperty = load("IOHIDServiceClientCopyProperty", as: CopyPropertyFn.self),
+              let copyEvent = load("IOHIDServiceClientCopyEvent", as: CopyEventFn.self),
+              let getFloat = load("IOHIDEventGetFloatValue", as: GetFloatFn.self),
+              let client = create(nil)   // nil = default allocator
+        else { return }
+        self.client = client
+        self.copyProperty = copyProperty
+        self.copyEvent = copyEvent
+        self.getFloat = getFloat
+
+        // Vendor page 0xff00, usage 5: the temperature sensors
+        let matching = ["PrimaryUsagePage": 0xff00, "PrimaryUsage": 5] as CFDictionary
+        _ = setMatching(client, Unmanaged.passUnretained(matching).toOpaque())
+        guard let raw = copyServices(client) else { return }
+        let services = Unmanaged<CFArray>.fromOpaque(raw).takeRetainedValue()
+        servicesArray = services
+
+        for i in 0..<CFArrayGetCount(services) {
+            guard let service = CFArrayGetValueAtIndex(services, i),
+                  let nameRaw = copyProperty(service, Unmanaged.passUnretained("Product" as CFString).toOpaque())
+            else { continue }
+            let name = (Unmanaged<CFString>.fromOpaque(nameRaw).takeRetainedValue() as String).lowercased()
+            if name.contains("gpu") {
+                gpuServices.append(service)
+            } else if name.contains("tdie") || name.contains("pacc") || name.contains("eacc") || name.contains("cpu") {
+                cpuServices.append(service)
+            }
+        }
+    }
+
+    /// Average of each group's sensors, ignoring junk readings.
+    func read() -> (cpu: Double?, gpu: Double?) {
+        (average(cpuServices), average(gpuServices))
+    }
+
+    private func average(_ services: [UnsafeRawPointer]) -> Double? {
+        guard let copyEvent, let getFloat else { return nil }
+        var sum = 0.0, n = 0.0
+        for service in services {
+            guard let event = copyEvent(service, Self.temperatureEvent, 0, 0) else { continue }
+            let value = getFloat(event, Self.temperatureField)
+            Unmanaged<AnyObject>.fromOpaque(event).release()
+            if value > 0 && value < 150 { sum += value; n += 1 }
+        }
+        return n > 0 ? sum / n : nil
+    }
+}
+
 // MARK: - Views
 
 /// Invisible button that just forwards clicks; the look comes from its subviews.
@@ -350,6 +551,64 @@ func spaceTile(_ space: YabaiSpace, label: Int) -> NSView {
     ])
     tile.onClick = { Yabai.focus(space: space.index) }
     return tile
+}
+
+/// A small scorecard: title over icon + value, the value tinted by how
+/// worrying it is. Mirrors the stat cards on the Arch dock.
+final class StatCard: NSView {
+    let warn: Double
+    let crit: Double
+    private let valueLabel = NSTextField(labelWithString: "–")
+
+    init(title: String, symbol: String, warn: Double, crit: Double) {
+        self.warn = warn
+        self.crit = crit
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 10
+        layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.06).cgColor
+        translatesAutoresizingMaskIntoConstraints = false
+
+        let titleLabel = NSTextField(labelWithString: title.uppercased())
+        titleLabel.font = .systemFont(ofSize: 9, weight: .semibold)
+        titleLabel.textColor = .tertiaryLabelColor
+
+        let icon = NSImageView()
+        icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .medium))
+        icon.contentTintColor = .secondaryLabelColor
+
+        valueLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .bold)
+
+        let row = NSStackView(views: [icon, valueLabel])
+        row.orientation = .horizontal
+        row.spacing = 5
+        let column = NSStackView(views: [titleLabel, row])
+        column.orientation = .vertical
+        column.alignment = .leading
+        column.spacing = 2
+        column.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(column)
+
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(equalToConstant: 48),
+            widthAnchor.constraint(greaterThanOrEqualToConstant: 76),
+            widthAnchor.constraint(greaterThanOrEqualTo: column.widthAnchor, constant: 24),
+            column.centerXAnchor.constraint(equalTo: centerXAnchor),
+            column.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    /// nil hides the card (no reading available on this Mac).
+    func show(_ value: Double?, format: String, detail: String = "") {
+        isHidden = value == nil
+        guard let value else { return }
+        valueLabel.stringValue = String(format: format, value)
+        valueLabel.textColor = value >= crit ? .systemRed : value >= warn ? .systemYellow : .systemGreen
+        toolTip = detail.isEmpty ? nil : detail
+    }
 }
 
 // MARK: - App picker
@@ -552,6 +811,14 @@ final class Bar {
     let panel: NSPanel
     let spacesStack = NSStackView()
     let appsStack = NSStackView()
+    let statsStack = NSStackView()
+    // Same thresholds as the Arch dock (quickshell/dock/Dock.qml)
+    let cpuCard = StatCard(title: "CPU", symbol: "cpu", warn: 50, crit: 80)
+    let memCard = StatCard(title: "Mem", symbol: "memorychip", warn: 60, crit: 85)
+    let gpuCard = StatCard(title: "GPU", symbol: "square.3.layers.3d", warn: 60, crit: 90)
+    let cpuTempCard = StatCard(title: "CPU temp", symbol: "thermometer.medium", warn: 70, crit: 85)
+    let gpuTempCard = StatCard(title: "GPU temp", symbol: "thermometer.medium", warn: 70, crit: 83)
+    let diskCard = StatCard(title: "Disk", symbol: "internaldrive", warn: 75, crit: 90)
 
     init(screen: NSScreen) {
         self.screen = screen
@@ -571,7 +838,7 @@ final class Bar {
         panel.isMovable = false
 
         let content = BarBackground()
-        for stack in [spacesStack, appsStack] {
+        for stack in [spacesStack, appsStack, statsStack] {
             stack.orientation = .horizontal
             stack.spacing = 2
             stack.translatesAutoresizingMaskIntoConstraints = false
@@ -583,7 +850,14 @@ final class Bar {
             spacesStack.centerYAnchor.constraint(equalTo: content.centerYAnchor),
             appsStack.centerXAnchor.constraint(equalTo: content.centerXAnchor),
             appsStack.centerYAnchor.constraint(equalTo: content.centerYAnchor),
+            statsStack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -12),
+            statsStack.centerYAnchor.constraint(equalTo: content.centerYAnchor),
         ])
+        statsStack.spacing = 6
+        for card in [cpuCard, memCard, gpuCard, cpuTempCard, gpuTempCard, diskCard] {
+            card.isHidden = true   // until the first sample
+            statsStack.addArrangedSubview(card)
+        }
 
         if #available(macOS 26.0, *) {
             let glass = NSGlassEffectView()
@@ -647,6 +921,15 @@ final class Bar {
         spaces.forEach { spacesStack.addArrangedSubview(spaceTile($0, label: $0.index)) }
     }
 
+    func setStats(_ s: StatSample) {
+        cpuCard.show(s.cpu, format: "%.0f%%")
+        memCard.show(s.mem, format: "%.0f%%", detail: s.memDetail)
+        gpuCard.show(s.gpu, format: "%.0f%%")
+        cpuTempCard.show(s.cpuTemp, format: "%.0f°C")
+        gpuTempCard.show(s.gpuTemp, format: "%.0f°C")
+        diskCard.show(s.disk, format: "%.0f%%", detail: s.diskDetail)
+    }
+
     func close() { panel.orderOut(nil) }
 }
 
@@ -655,6 +938,10 @@ final class Bar {
 final class Controller: NSObject, NSApplicationDelegate {
     var bars: [Bar] = []
     var usr1: DispatchSourceSignal?
+    var lastStats: StatSample?
+    let sampler = StatSampler()
+    let statsQueue = DispatchQueue(label: "glassbar.stats")
+    var statsTimer: Timer?
 
     func applicationDidFinishLaunching(_ note: Notification) {
         rebuildBars()
@@ -680,6 +967,23 @@ final class Controller: NSObject, NSApplicationDelegate {
         src.setEventHandler { [weak self] in self?.refreshSpaces() }
         src.resume()
         usr1 = src
+
+        // Stat cards: sample every 2s off the main thread
+        refreshStats()
+        statsTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            self?.refreshStats()
+        }
+    }
+
+    func refreshStats() {
+        statsQueue.async { [weak self] in
+            guard let self else { return }
+            let s = self.sampler.sample()
+            DispatchQueue.main.async {
+                self.lastStats = s
+                self.bars.forEach { $0.setStats(s) }
+            }
+        }
     }
 
     @objc func rebuildBars() {
@@ -687,6 +991,7 @@ final class Controller: NSObject, NSApplicationDelegate {
         bars = NSScreen.screens.map { Bar(screen: $0) }
         refreshApps()
         refreshSpaces()
+        if let lastStats { bars.forEach { $0.setStats(lastStats) } }
     }
 
     @objc func refreshApps() {

@@ -77,7 +77,10 @@ What does carry over:
     Accessibility permission (re-grant it after a `brew upgrade` if it stops working).
 *   **GlassBar**: `mac/glassbar/` is a small Swift app: a full-width Liquid Glass bar at the
     bottom of every screen with yabai's spaces on the left and the Dock's pinned + running apps
-    in the middle. The real Dock is auto-hidden; pin apps by dragging them into it. Run
+    in the middle, and stat cards (CPU, memory, GPU, CPU/GPU temp, disk) on the right, coloured
+    green / yellow / red like the Arch dock's. Temperatures use a private sensor API loaded at
+    runtime, so those two cards hide rather than break if macOS changes it. The real Dock is
+    auto-hidden; pin apps by dragging them into it. Run
     `mac/glassbar/install.sh` after editing `GlassBar.swift` to rebuild and restart it.
 *   Everything else shared between platforms (`nvim`, `ghostty`, `tmux`, `zshrc`, `yazi`,
     `oh-my-zsh`, `scripts/ntfy`, `gitconfig`, `sqlfluff`) is linked identically by `scripts/link.sh`.
