@@ -12,6 +12,23 @@ MouseArea {
     property string tooltipText: "" // Qt rich text (use Theme.pangoToRichText for script output)
     property color textColor: Theme.textSecondary
     property int horizontalPadding: 8
+    property int fontSize: Theme.fontSize
+    // Open the tooltip above the module instead of below (bottom dock)
+    property bool tooltipAbove: false
+    // Set to render as a scorecard: small title over icon + value
+    property string title: ""
+    readonly property bool card: title !== ""
+    // [warn, crit]: colour the card's value green / yellow / red by the
+    // first number in text (e.g. "62°C" → 62)
+    property var thresholds: null
+
+    readonly property color valueColor: {
+        const m = root.thresholds ? String(root.text).match(/-?\d+(\.\d+)?/) : null;
+        if (!m)
+            return Theme.textPrimary;
+        const v = parseFloat(m[0]);
+        return v >= root.thresholds[1] ? Theme.red : v >= root.thresholds[0] ? Theme.yellow : Theme.green;
+    }
 
     signal leftClicked
     signal rightClicked
@@ -29,7 +46,7 @@ MouseArea {
     }
 
     visible: displayText !== ""
-    implicitWidth: label.implicitWidth + horizontalPadding * 2
+    implicitWidth: card ? Math.max(cardColumn.implicitWidth + 24, 76) : label.implicitWidth + horizontalPadding * 2
 
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
@@ -47,11 +64,64 @@ MouseArea {
 
     Text {
         id: label
+        visible: !root.card
         anchors.centerIn: parent
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
+        font.pixelSize: root.fontSize
         color: root.textColor
         text: root.displayText
+    }
+
+    Rectangle {
+        visible: root.card
+        anchors.fill: parent
+        anchors.topMargin: 4
+        anchors.bottomMargin: 4
+        radius: Theme.radius
+        color: root.containsMouse ? Theme.activeBg : Theme.hoverBg
+
+        Behavior on color {
+            ColorAnimation { duration: Theme.durFast }
+        }
+
+        Column {
+            id: cardColumn
+            anchors.centerIn: parent
+            spacing: 2
+
+            Text {
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize - 3
+                font.letterSpacing: 0.5
+                color: Theme.textDim
+                text: root.title.toUpperCase()
+            }
+
+            Row {
+                spacing: 6
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    color: Theme.textSecondary
+                    text: root.icon
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize + 1
+                    font.bold: true
+                    color: root.valueColor
+                    text: root.text
+
+                    Behavior on color {
+                        ColorAnimation { duration: Theme.durMed }
+                    }
+                }
+            }
+        }
     }
 
     onContainsMouseChanged: {
@@ -74,9 +144,9 @@ MouseArea {
         visible: false
 
         anchor.item: root
-        anchor.edges: Edges.Bottom
-        anchor.gravity: Edges.Bottom
-        anchor.margins.top: 8
+        anchor.edges: root.tooltipAbove ? Edges.Top : Edges.Bottom
+        anchor.gravity: root.tooltipAbove ? Edges.Top : Edges.Bottom
+        anchor.margins.top: root.tooltipAbove ? -8 : 8
 
         implicitWidth: tipLabel.implicitWidth + 28
         implicitHeight: tipLabel.implicitHeight + 20

@@ -10,6 +10,7 @@ BarModule {
 
     horizontalPadding: 0
     textColor: Theme.textPrimary
+    fontSize: Theme.fontSize + 3
     text: Qt.formatDateTime(clock.date, "ddd MMM dd  HH:mm:ss")
 
     SystemClock {

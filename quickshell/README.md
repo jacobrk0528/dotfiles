@@ -8,7 +8,7 @@ immediately — except `qmldir`, which needs `pkill qs && qs &`.
 
 ## Design language — "Slate & Frost"
 
-Surfaces are `#0d1117` at 82% (bar) / 94% (panels) with a 1px white-8% border, blurred by
+Surfaces are the theme base at 75% (top bar and dock, matching Ghostty) / 94% (panels) with a 1px white-8% border, blurred by
 Hyprland. Radius 10 for bar pills, 16 for panels. Type is JetBrainsMono Nerd Font. Text sits at
 85% / 60% / 35% white for primary / secondary / dim. The accent is frost cyan `#8be9fd`;
 green→yellow→red carry status. Motion is 150ms for hover, 200ms for panels, ease-out.
@@ -21,6 +21,7 @@ green→yellow→red carry status. Motion is 150ms for hover, 200ms for panels, 
 | `Theme.qml` | Design tokens, read from `theme.json` (live) |
 | `Shortcuts.qml` | Hyprland global shortcuts → panel state |
 | `Bar.qml` | The status bar, one per monitor |
+| `dock/` | The bottom app dock, one per monitor; pins in `dock.json` |
 | `services/` | Singletons: `Notifs`, `Panels`, `Osd`, `SysInfo` |
 | `components/` | Reusable widgets: `Pill`, `Card`, `Slider`, `BarModule`, … |
 | `modules/` | Bar modules |
@@ -33,10 +34,25 @@ Anything new in the repo root must also be listed in `qmldir`, or QML will not s
 
 ## Surfaces
 
-**Bar** — workspaces (special workspaces hidden), window title, clock with calendar popup,
-media, CPU, memory, GPU util/temp, CPU temp, disk, network, volume, notifications, tray.
+**Bar** — workspaces (special workspaces hidden), minimized count, dictation, clock with
+calendar popup, network, volume, notifications, tray.
 Clicking workspaces dispatches straight to the `hl.dsp.focus()` Lua dispatchers, so the old
 `hypr_ipc_proxy.py` translation layer is gone.
+
+**Dock** — a macOS-style bar along the bottom of every monitor, always visible (it reserves
+its height the way the top bar does). Now playing sits on the left and system stats (CPU, memory, GPU util/temp, CPU temp, disk) on
+the right; the middle holds pinned apps,
+then any other running app, then — after a divider — every window parked on `special:minimized`.
+Running apps are grouped by window class and matched to a desktop entry
+(`services/DockApps.qml`); a dot under an icon is one open window. Left click launches, focuses,
+or cycles through an app's windows (toggling its scratchpad into view if it lives on one);
+middle click opens a new window; right click lists its windows plus New window / Keep in Dock /
+Close. Drag an icon sideways to reorder. Right-click empty dock space for the "Add to Dock"
+picker (`panels/DockPicker.qml`): every installed app in a searchable grid, click or Enter to
+pin/unpin. The stat cards colour their value green / yellow / red against per-stat thresholds
+set in `dock/Dock.qml`. Clicking a minimized window brings it back onto the
+workspace in front of you. Pins, the dragged order, and names/icons for window classes with no
+desktop entry (the tmux terminal, YouTube Music) all live in `dock.json`, which reloads live.
 
 **Notifications** — quickshell owns `org.freedesktop.Notifications`. Popups follow the focused
 monitor, carry an urgency stripe and a timeout bar, pause on hover, and support actions.

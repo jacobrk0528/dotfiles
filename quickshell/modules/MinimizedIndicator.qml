@@ -3,9 +3,8 @@ import QtQuick
 import ".."
 import "../components"
 
-// Count of windows parked on special:minimized (via the top-right dot in
-// overlays/WindowMinimizeButtons.qml). Collapses to nothing when there's
-// nothing minimized; click toggles special:minimized back into view.
+// Count of windows parked on special:minimized. Collapses to nothing when
+// there's nothing minimized; click toggles special:minimized back into view.
 BarModule {
     id: root
 

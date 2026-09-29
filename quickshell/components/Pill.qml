@@ -5,14 +5,13 @@ import ".."
 Rectangle {
     default property alias content: layout.data
     property int horizontalPadding: 10
+    property alias spacing: layout.spacing
 
     implicitWidth: layout.implicitWidth + horizontalPadding * 2
     visible: layout.implicitWidth > 0
 
-    color: Theme.pillBg
-    border.color: Theme.pillBorder
-    border.width: 1
-    radius: Theme.radius
+    // Bare: the bar's own BarSurface is the background
+    color: "transparent"
 
     RowLayout {
         id: layout

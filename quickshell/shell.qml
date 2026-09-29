@@ -4,6 +4,7 @@ import QtQuick
 import "overlays"
 import "panels"
 import "desktop"
+import "dock"
 
 ShellRoot {
     // Status bar on every monitor
@@ -14,6 +15,13 @@ ShellRoot {
             required property var modelData
             screen: modelData
         }
+    }
+
+    // App dock on every monitor
+    Variants {
+        model: Quickshell.screens
+
+        Dock {}
     }
 
     // Wallpaper, drawn beneath everything
@@ -40,11 +48,11 @@ ShellRoot {
 
     NowPlayingOsd {}
 
-    WindowMinimizeButtons {}
 
     // Panels
     NotificationCenter {}
     Launcher {}
+    DockPicker {}
     ControlCenter {}
     PowerMenu {}
     Cheatsheet {}

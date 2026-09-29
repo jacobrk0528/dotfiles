@@ -7,7 +7,7 @@ import "../components"
 BarModule {
     id: root
 
-    icon: ""
+    icon: ""
     tooltipText: "CPU usage"
 
     property var prev: null

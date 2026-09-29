@@ -144,7 +144,8 @@ PanelWindow {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.leftMargin: 48
-        anchors.bottomMargin: 48
+        // Clear of the dock, which this layer ignores the exclusive zone of
+        anchors.bottomMargin: Theme.barMargin + Theme.dockHeight + 48
 
         width: 200
 

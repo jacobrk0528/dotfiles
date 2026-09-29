@@ -11,3 +11,4 @@ singleton NowPlaying NowPlaying.qml
 singleton OverlayStack OverlayStack.qml
 singleton AiShot AiShot.qml
 singleton HALights HALights.qml
+singleton DockApps DockApps.qml

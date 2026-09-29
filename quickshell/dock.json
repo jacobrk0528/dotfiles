@@ -1,0 +1,34 @@
+{
+    "classes": {
+        "chrome-music.youtube.com__-Default": {
+            "icon": "chrome-cinhimbnkkaeohfgghhklpknlkffjgod-Profile_1",
+            "name": "YouTube Music"
+        },
+        "com.jkrebs.btop": {
+            "name": "btop"
+        },
+        "com.jkrebs.term": {
+            "app": "com.mitchellh.ghostty"
+        },
+        "com.jkrebs.yazi": {
+            "exec": "~/dotfiles/scripts/yazi-window",
+            "icon": "yazi",
+            "name": "Files"
+        }
+    },
+    "order": [
+        "com.mitchellh.ghostty",
+        "brave-browser",
+        "slack",
+        "com.jkrebs.yazi",
+        "google-chrome",
+        "chrome-music.youtube.com__-Default",
+        "com.jkrebs.btop"
+    ],
+    "pins": [
+        "com.mitchellh.ghostty",
+        "brave-browser",
+        "slack",
+        "com.jkrebs.yazi"
+    ]
+}

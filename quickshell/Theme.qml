@@ -70,9 +70,17 @@ Singleton {
     // ── Geometry ─────────────────────────────────────────────────
     readonly property int radius: cfg.radius
     readonly property int panelRadius: cfg.panelRadius
-    readonly property int barHeight: cfg.barHeight
+    // Inset between a bar's rounded background and its contents (top bar
+    // and dock). barHeight/dockHeight are the full bar heights including it;
+    // cfg.barHeight is the content row.
+    readonly property int barPaddingV: 6
+    readonly property int barPaddingH: 2
+    readonly property int barHeight: cfg.barHeight + barPaddingV * 2
     readonly property int barMargin: cfg.barMargin
     readonly property string desktopMonitor: cfg.desktopMonitor
+
+    readonly property int dockHeight: 60 + barPaddingV * 2
+    readonly property int dockIconSize: 40
 
     readonly property int spacingS: 6
     readonly property int spacingM: 10
