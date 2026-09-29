@@ -36,9 +36,9 @@ yabai -m config mouse_follows_focus   off
 yabai -m rule --add app="^(System Settings|System Information|Calculator|Archive Utility|Finder)$" manage=off
 
 # GlassBar (mac/glassbar) sits along the bottom of every screen: reserve its
-# 60px + 8px margin so tiled windows stop above it, never tile the bar itself,
+# 78px + 8px margin so tiled windows stop above it, never tile the bar itself,
 # and poke it to redraw its space buttons when spaces or windows change.
-yabai -m config external_bar all:0:68
+yabai -m config external_bar all:0:86
 yabai -m rule --add app="^GlassBar$" manage=off
 for event in space_changed display_changed space_created space_destroyed window_created window_destroyed; do
     yabai -m signal --add event=$event label=glassbar_$event action="pkill -USR1 -x GlassBar"
