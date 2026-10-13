@@ -102,7 +102,16 @@ echo "🔗 Installing optimus-link..."
 "$DOTFILES_DIR/mac/optimus-link/install.sh"
 brew services start syncthing
 
-# 10. Wallpaper — mirrors whatever's active on the Linux box (quickshell
+# 10. Android SDK — the same platforms and build tools the desktop has, so the
+# synced Android projects build here too
+echo "🤖 Installing Android SDK..."
+ANDROID_SDK="$HOME/Library/Android/sdk"
+export JAVA_HOME="$(brew --prefix)/opt/openjdk"
+yes | sdkmanager --sdk_root="$ANDROID_SDK" --licenses > /dev/null 2>&1 || true
+sdkmanager --sdk_root="$ANDROID_SDK" "platform-tools" \
+    "platforms;android-36" "platforms;android-37.0" "build-tools;36.0.0" "build-tools;37.0.0"
+
+# 11. Wallpaper — mirrors whatever's active on the Linux box (quickshell
 # itself doesn't run here; see mac/set-wallpaper.sh)
 "$DOTFILES_DIR/mac/set-wallpaper.sh" || echo "🖼️  Skipped wallpaper (run mac/set-wallpaper.sh manually later)"
 

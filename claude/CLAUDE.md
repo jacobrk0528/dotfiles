@@ -37,8 +37,15 @@ them across.
 
 Home is `/home/jkrebs` on the desktop and `/Users/jkrebs` on the laptop, so
 never write an absolute home path into a synced file. Git worktrees record
-absolute paths; if one reports "not a valid repository" after switching
-machines, `git worktree repair` from the main checkout fixes it.
+absolute paths by default, which breaks them on the other machine: always
+create them with `git worktree add --relative-paths`, and fix an existing one
+with `git worktree repair --relative-paths <path>` from the main checkout.
+
+Each Android project needs its own `android/local.properties` per machine
+(`sdk.dir` differs); copy the other keys from the other machine's file.
+
+`.DS_Store` files are never synced. Where a repo has one committed, it shows
+as deleted on the laptop; leave that out of commits.
 
 ## Databases
 

@@ -35,6 +35,9 @@ if [[ "$(uname)" == "Darwin" ]]; then
     source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
     source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
     export ANDROID_HOME="$HOME/Library/Android/sdk"
+    # Homebrew's JDK is keg-only, so gradle can't find it without this.
+    export JAVA_HOME="$BREW_PREFIX/opt/openjdk"
+    export PATH="$JAVA_HOME/bin:$PATH"
     export PATH="$PATH:/usr/local/opt/postgresql@17/bin"
     # The databases live on the desktop; optimus-link forwards them to
     # localhost. Point the clients at TCP instead of a local socket that no
