@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Pair this machine's Syncthing with the other one and share Documents and
+Downloads with it. Run once on each side; safe to re-run.
+
+  sync-setup <peer-name> <peer-device-id> <peer-tailscale-ip>
+
+The device id is the "myID" line of `syncthing cli show system` on the peer.
+Check the result with `sync-status`.
+"""
+import json
+import os
+import platform
+import re
+import sys
+import urllib.error
+import urllib.request
+
+CONFIG_CANDIDATES = [
+    "~/Library/Application Support/Syncthing/config.xml",
+    os.path.join(os.environ.get("XDG_STATE_HOME", "~/.local/state"), "syncthing/config.xml"),
+    "~/.config/syncthing/config.xml",
+]
+
+# Synced as .stglobalignore so both machines always agree on it. Everything
+# here is either rebuilt per machine (a Linux node_modules or venv does not run
+# on macOS) or hard-codes this machine's paths.
+DOCUMENTS_IGNORES = """\
+(?d).DS_Store
+(?d)node_modules
+(?d).venv
+(?d)venv
+(?d)__pycache__
+(?d)*.pyc
+(?d).pytest_cache
+(?d).mypy_cache
+(?d).ruff_cache
+(?d).gradle
+(?d).dart_tool
+(?d).next
+(?d)**/android/build
+(?d)**/android/app/build
+local.properties
+"""
+DOWNLOADS_IGNORES = """\
+(?d).DS_Store
+*.crdownload
+*.part
+*.download
+"""
+# Not synced: folders that only make sense on one machine.
+LOCAL_IGNORES = {"Darwin": {"documents": ["/ProPresenter"]}}
+
+FOLDERS = [
+    ("documents", "Documents", "~/Documents", DOCUMENTS_IGNORES),
+    ("downloads", "Downloads", "~/Downloads", DOWNLOADS_IGNORES),
+]
+
+
+def main(peer_name, peer_id, peer_ip):
+    for path in CONFIG_CANDIDATES:
+        path = os.path.expanduser(path)
+        if os.path.exists(path):
+            xml = open(path).read()
+            break
+    else:
+        sys.exit("no Syncthing config found; start syncthing once first")
+    key = re.search(r"<apikey>([^<]+)</apikey>", xml).group(1)
+    base = "http://" + re.search(r"<gui[^>]*>.*?<address>([^<]+)</address>", xml, re.S).group(1)
+
+    def call(method, path, body=None):
+        req = urllib.request.Request(f"{base}/rest/{path}", method=method,
+                                     data=json.dumps(body).encode() if body is not None else None,
+                                     headers={"X-API-Key": key, "Content-Type": "application/json"})
+        try:
+            return urllib.request.urlopen(req, timeout=10).read()
+        except urllib.error.HTTPError as err:
+            if err.code != 404:
+                raise
+
+    # Both machines are on the tailnet, so talk to the peer there directly and
+    # keep the traffic off public relays and discovery servers.
+    call("PATCH", "config/options", {
+        "relaysEnabled": False, "globalAnnounceEnabled": False,
+        "localAnnounceEnabled": False, "natEnabled": False, "urAccepted": -1,
+    })
+    call("POST", "config/devices", {
+        "deviceID": peer_id, "name": peer_name, "addresses": [f"tcp://{peer_ip}:22000"],
+    })
+    call("DELETE", "config/folders/default")
+
+    for folder_id, label, path, ignores in FOLDERS:
+        root = os.path.expanduser(path)
+        os.makedirs(root, exist_ok=True)
+        # The ignore files have to exist before the folder is first scanned, or
+        # the initial sync would start hauling node_modules across.
+        with open(os.path.join(root, ".stglobalignore"), "w") as f:
+            f.write(ignores)
+        local = LOCAL_IGNORES.get(platform.system(), {}).get(folder_id, [])
+        with open(os.path.join(root, ".stignore"), "w") as f:
+            f.write("\n".join(local + ["#include .stglobalignore"]) + "\n")
+        call("POST", "config/folders", {
+            "id": folder_id, "label": label, "path": path, "type": "sendreceive",
+            "devices": [{"deviceID": peer_id}],
+            "fsWatcherEnabled": True, "fsWatcherDelayS": 5,
+            # Anything a sync replaces or deletes is kept in .stversions for two
+            # weeks, so a file clobbered by a badly timed edit can be recovered.
+            "versioning": {"type": "staggered", "params": {"maxAge": str(14 * 86400)}},
+        })
+        print(f"sharing {path} with {peer_name}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        sys.exit(__doc__)
+    main(*sys.argv[1:])

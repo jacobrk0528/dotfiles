@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""Is it safe to edit the folders Syncthing shares between the desktop and laptop?
+
+Editing a file here while a newer copy is still on its way from the other
+machine leaves a conflict copy (or, inside .git, a broken repo), so everything
+that edits should ask this first.
+
+  sync-status            report every shared folder
+  sync-status --wait     block until it is safe, showing progress
+  sync-status --prompt   one line for the shell prompt; nothing when safe
+  sync-status --hook     Claude Code PreToolUse hook (reads the tool call on stdin)
+
+Exit status: 0 safe to edit, 1 changes still arriving (do not edit),
+2 cannot tell (other machine not connected, or Syncthing not running).
+"""
+import json
+import os
+import re
+import sys
+import time
+import urllib.parse
+import urllib.request
+from datetime import datetime, timezone
+
+SAFE, RECEIVING, UNKNOWN = 0, 1, 2
+
+CONFIG_CANDIDATES = [
+    "~/Library/Application Support/Syncthing/config.xml",
+    os.path.join(os.environ.get("XDG_STATE_HOME", "~/.local/state"), "syncthing/config.xml"),
+    "~/.config/syncthing/config.xml",
+]
+# A connection this young has not finished exchanging indexes, so "nothing
+# needed" does not yet mean there is nothing newer on the other side.
+SETTLE_SECONDS = 15
+
+
+def human(n):
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.0f} {unit}" if unit in ("B", "KB") else f"{n:.1f} {unit}"
+        n /= 1024
+
+
+class Syncthing:
+    def __init__(self):
+        for path in CONFIG_CANDIDATES:
+            path = os.path.expanduser(path)
+            if os.path.exists(path):
+                xml = open(path).read()
+                break
+        else:
+            raise OSError("no Syncthing config found")
+        self.key = re.search(r"<apikey>([^<]+)</apikey>", xml).group(1)
+        address = re.search(r"<gui[^>]*>.*?<address>([^<]+)</address>", xml, re.S).group(1)
+        self.base = "http://" + address
+
+    def get(self, path, **params):
+        url = f"{self.base}/rest/{path}"
+        if params:
+            url += "?" + urllib.parse.urlencode(params)
+        req = urllib.request.Request(url, headers={"X-API-Key": self.key})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.load(resp)
+
+
+def check(only_path=None):
+    """Return (code, [(code, label, message)]) for the shared folders.
+
+    With only_path, just the folder containing it; no folders means the path
+    is not synced at all and there is nothing to wait for.
+    """
+    st = Syncthing()
+    me = st.get("system/status")["myID"]
+    names = {d["deviceID"]: d["name"] for d in st.get("config/devices")}
+    connections = st.get("system/connections")["connections"]
+    results = []
+
+    for folder in st.get("config/folders"):
+        root = os.path.realpath(os.path.expanduser(folder["path"]))
+        if only_path and not (only_path == root or only_path.startswith(root + os.sep)):
+            continue
+        label = folder["label"] or folder["id"]
+        peers = [d["deviceID"] for d in folder["devices"] if d["deviceID"] != me]
+        if not peers:
+            continue
+        if folder["paused"]:
+            results.append((UNKNOWN, label, "sync is paused, so this copy may be stale"))
+            continue
+
+        status = st.get("db/status", folder=folder["id"])
+        need = status["needFiles"] + status["needDirectories"] + status["needSymlinks"] + status["needDeletes"]
+        if need or status["state"].startswith("sync"):
+            detail = f"{need} items, {human(status['needBytes'])} left" if need else "starting"
+            results.append((RECEIVING, label, f"receiving changes ({detail})"))
+            continue
+        if status.get("pullErrors"):
+            results.append((RECEIVING, label, f"{status['pullErrors']} items failed to sync, see the Syncthing UI"))
+            continue
+
+        code, message = SAFE, "in sync"
+        for peer in peers:
+            name = names.get(peer, peer[:7])
+            conn = connections.get(peer, {})
+            if not conn.get("connected"):
+                code, message = UNKNOWN, f"{name} is not connected, so it may hold newer changes"
+                break
+            # Drop the fraction: Syncthing sends nanoseconds, which older Pythons reject.
+            started = datetime.fromisoformat(re.sub(r"\.\d+", "", conn["startedAt"]).replace("Z", "+00:00"))
+            if (datetime.now(timezone.utc) - started).total_seconds() < SETTLE_SECONDS:
+                code, message = RECEIVING, f"just connected to {name}, comparing files"
+                break
+            behind = st.get("db/completion", folder=folder["id"], device=peer)
+            if behind["needItems"] + behind["needDeletes"]:
+                # Our edits have not all landed there yet. Fine to keep working
+                # here; not yet safe to walk over and start on the other one.
+                message = f"in sync here; still sending {behind['needItems'] + behind['needDeletes']} items to {name}"
+        results.append((code, label, message))
+
+    # Receiving outranks unknown: it is the definite reason not to edit.
+    codes = [r[0] for r in results]
+    overall = RECEIVING if RECEIVING in codes else UNKNOWN if UNKNOWN in codes else SAFE
+    return overall, results
+
+
+def safe_check(only_path=None):
+    try:
+        return check(only_path)
+    except OSError as err:  # URLError is an OSError: Syncthing not running
+        return UNKNOWN, [(UNKNOWN, "Syncthing", f"not reachable ({err})")]
+
+
+MARK = {SAFE: "\033[32m✓\033[0m", RECEIVING: "\033[31m✗\033[0m", UNKNOWN: "\033[33m?\033[0m"}
+VERDICT = {
+    SAFE: "\033[32mSafe to edit.\033[0m",
+    RECEIVING: "\033[1;31mDO NOT EDIT: changes are still arriving.\033[0m Run `sync-status --wait`.",
+    UNKNOWN: "\033[1;33mCANNOT CONFIRM the other machine has nothing newer.\033[0m",
+}
+
+
+def report():
+    overall, results = safe_check()
+    for code, label, message in results:
+        print(f" {MARK[code]} {label}: {message}")
+    print(VERDICT[overall])
+    return overall
+
+
+def wait():
+    while True:
+        overall, results = safe_check()
+        line = "; ".join(f"{label}: {message}" for code, label, message in results if code != SAFE)
+        if overall != RECEIVING:
+            print("\r\033[K", end="")
+            return report()
+        print(f"\r\033[K{line}", end="", flush=True)
+        time.sleep(2)
+
+
+def prompt():
+    """Loud when unsafe, silent when fine, and only inside a shared folder."""
+    overall, results = safe_check(os.path.realpath(os.getcwd()))
+    if overall == RECEIVING:
+        print("%K{red}%F{white}%B SYNCING, DO NOT EDIT %b%f%k " + "; ".join(m for c, _, m in results if c == RECEIVING))
+    elif overall == UNKNOWN:
+        print("%K{yellow}%F{black} SYNC UNKNOWN %f%k " + "; ".join(m for c, _, m in results if c == UNKNOWN))
+    return overall
+
+
+def hook():
+    """Deny edits while changes are arriving; ask the user when we cannot tell."""
+    call = json.load(sys.stdin)
+    tool_input = call.get("tool_input", {})
+    path = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if not path:
+        return 0
+    path = os.path.realpath(os.path.join(call.get("cwd", ""), os.path.expanduser(path)))
+    overall, results = safe_check(path)
+    if overall == SAFE:
+        return 0
+    reason = "; ".join(f"{label}: {message}" for code, label, message in results if code != SAFE)
+    if overall == RECEIVING:
+        decision = "deny"
+        reason = (f"Syncthing is still receiving changes for this folder ({reason}). Editing now would "
+                  "create conflicts. Run `sync-status --wait`, then re-read the file before editing.")
+    else:
+        decision = "ask"
+        reason = (f"Cannot confirm this folder is up to date ({reason}). Only edit if the other "
+                  "machine has no unsynced work.")
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": decision,
+        "permissionDecisionReason": reason,
+    }}))
+    return 0
+
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    sys.exit({"--wait": wait, "--prompt": prompt, "--hook": hook}.get(mode, report)())

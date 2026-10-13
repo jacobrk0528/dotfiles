@@ -123,3 +123,4 @@ zoom
 zsh
 zsh-autosuggestions
 zsh-syntax-highlighting
+syncthing

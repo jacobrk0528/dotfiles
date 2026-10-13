@@ -30,6 +30,8 @@ brew "postgresql@17"
 brew "python"
 brew "ripgrep"
 brew "rsync"
+# Documents/Downloads sync with the desktop
+brew "syncthing"
 brew "tcl-tk"
 brew "tmux"
 brew "tree"
@@ -49,6 +51,8 @@ brew "mssql-tools18"
 # PHP extensions (install via pecl after: pecl install redis)
 
 # --- Applications ---
+# adb, tunnelled to the desktop by mac/optimus-link
+cask "android-platform-tools"
 cask "brave-browser"
 cask "cmux"
 cask "ghostty"

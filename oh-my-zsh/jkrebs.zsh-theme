@@ -23,6 +23,17 @@ add-zsh-hook precmd git_prompt_update
 git_prompt_update() {
   GIT_INFO=$(git_branch_info)
 }
+# Banner above the prompt while Syncthing is still pulling the other machine's
+# changes into this folder (see scripts/sync-status). Silent when it is safe to
+# edit, and never consulted outside the shared folders.
+sync_prompt_update() {
+  SYNC_INFO=""
+  [[ "$PWD/" == "$HOME/Documents/"* || "$PWD/" == "$HOME/Downloads/"* ]] || return
+  local msg
+  msg=$(sync-status --prompt 2>/dev/null)
+  [[ -n "$msg" ]] && SYNC_INFO="$msg"$'\n'
+}
+add-zsh-hook precmd sync_prompt_update
 # Main prompt structure
-PROMPT='${GRAY}[%n@%m:${YELLOW}%~${GRAY}/]${GIT_INFO}
+PROMPT='${SYNC_INFO}${GRAY}[%n@%m:${YELLOW}%~${GRAY}/]${GIT_INFO}
 ${FOAM}%# ${RESET}'

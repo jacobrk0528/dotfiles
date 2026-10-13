@@ -65,30 +65,13 @@ rm -f "$CERT_TMP"
 
 # 5. Enable Services
 echo "⚙️  Starting services..."
-brew services start postgresql@17
-brew services start mariadb
-brew services start valkey
+# No local postgres/mariadb/valkey: optimus-link (step 9) forwards the
+# desktop's to the same ports, so both machines work against the same data.
+# The formulae stay installed for their clients (psql, mariadb, valkey-cli).
 # Tiling + focus-follows-mouse, like Hyprland. Needs Accessibility (see end).
 yabai --start-service || true
 
-# 6. PostgreSQL Setup
-if ! psql -U "$USER" -c '\q' &> /dev/null 2>&1; then
-    echo "🐘 Setting up PostgreSQL user and database..."
-    sleep 2
-    createuser --superuser "$USER" 2>/dev/null || true
-    createdb "$USER" 2>/dev/null || true
-    createdb "tomBombadil_local" 2>/dev/null || true
-    psql -d "tomBombadil_local" -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
-fi
-
-# 7. MariaDB Setup
-if ! mariadb -u root -e '\q' &> /dev/null 2>&1; then
-    echo "🗄️  Setting up MariaDB user '$USER'..."
-    sleep 2
-    sudo mariadb -e "CREATE USER IF NOT EXISTS '$USER'@'localhost' IDENTIFIED BY ''; GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' WITH GRANT OPTION; FLUSH PRIVILEGES;"
-fi
-
-# 8. Oh My Zsh
+# 6. Oh My Zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     echo "🐚 Installing Oh My Zsh..."
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
@@ -100,20 +83,26 @@ if [ "$SHELL" != "$(which zsh)" ]; then
     chsh -s "$(which zsh)"
 fi
 
-# 9. Claude Code CLI
+# 7. Claude Code CLI
 if ! command -v claude &> /dev/null; then
     echo "🤖 Installing Claude Code CLI..."
     curl -fsSL https://claude.ai/install.sh | bash
 fi
 
-# 10. GlassBar — full-width bar along the bottom of each screen, replacing
+# 8. GlassBar — full-width bar along the bottom of each screen, replacing
 # the Dock visually, so the real Dock only slides up at the bottom edge
 echo "🧊 Installing GlassBar..."
 "$DOTFILES_DIR/mac/glassbar/install.sh"
 defaults write com.apple.dock autohide -bool true
 killall Dock
 
-# 11. Wallpaper — mirrors whatever's active on the Linux box (quickshell
+# 9. optimus-link — forwards the desktop's databases here, plus (while an ssh
+# session to it is open) its other ports, this machine's adb, and copied images
+echo "🔗 Installing optimus-link..."
+"$DOTFILES_DIR/mac/optimus-link/install.sh"
+brew services start syncthing
+
+# 10. Wallpaper — mirrors whatever's active on the Linux box (quickshell
 # itself doesn't run here; see mac/set-wallpaper.sh)
 "$DOTFILES_DIR/mac/set-wallpaper.sh" || echo "🖼️  Skipped wallpaper (run mac/set-wallpaper.sh manually later)"
 

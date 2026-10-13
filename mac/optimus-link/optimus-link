@@ -1,0 +1,197 @@
+#!/bin/zsh
+# Makes the desktop feel local from this laptop. Runs as a LaunchAgent.
+#
+# Whenever the desktop is reachable, its databases (mariadb, postgres, valkey)
+# are forwarded to their usual ports here, so projects run natively on the
+# laptop against the same data instead of a second, drifting local copy.
+#
+# While a terminal here also has `ssh optimus` open:
+#
+#   ports      every TCP port listening on the desktop is forwarded to the same
+#              port here, so localhost:5173 works the moment a dev server starts
+#   phone      this laptop's adb server is reverse-forwarded to the desktop
+#              (:5038), so builds there install to the phone plugged in here
+#   clipboard  an image copied here is pushed into the desktop's Wayland
+#              clipboard, so ctrl+v in Claude Code over ssh pastes it
+#
+# Those three are torn down again when the last session closes, so dev-server
+# ports are free for working natively on the laptop.
+#
+#   optimus-link            run the watcher (what the LaunchAgent does)
+#   optimus-link status     what is forwarded right now, and what was skipped
+
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+HOST=${OPTIMUS_HOST:-optimus}
+HERE=${0:A:h}
+STATE="$HOME/.local/state/optimus-link"
+# Same socket ~/.ssh/config uses for this host, so the forwards ride on the
+# connection the interactive sessions already share.
+SSH=(ssh -o BatchMode=yes -o ConnectTimeout=5 -o ControlMaster=auto
+     -o "ControlPath=$HOME/.ssh/cm-%C" -o ControlPersist=10m)
+
+# Privileged ports can't be bound here, and the ephemeral range is short-lived
+# client noise rather than services.
+PORT_MIN=1024 PORT_MAX=32767
+# adb's own server (forwarding it would shadow the laptop's) and our tunnel.
+ADB_REMOTE_PORT=5038
+SKIP_PORTS=(5037 $ADB_REMOTE_PORT)
+# Forwarded even with no session open: mariadb, postgres, valkey.
+ALWAYS_PORTS=(3306 5432 6379)
+
+if [[ "$1" == "status" ]]; then
+	cat "$STATE/status" 2>/dev/null || echo "optimus-link: not running"
+	exit
+fi
+
+mkdir -p "$STATE"
+typeset -A forwarded skipped
+adb_linked=0 clip_count="" last_status=""
+
+log() { print -r -- "$(date '+%F %T') $*" }
+
+# An ssh client attached to a terminal. Our own polls and the backgrounded
+# connection master have no tty, so they never count as a session.
+session_open() {
+	ps -axo tty=,command= | awk -v h="$HOST" '
+		$1 != "??" && $2 ~ /(^|\/)ssh$/ {
+			for (i = 3; i <= NF; i++) if ($i == h || $i ~ ("@" h "$")) found = 1
+		}
+		END { exit !found }'
+}
+
+# $1: session | idle | down
+write_status() {
+	local s
+	local -a fwd=(${(onk)forwarded}) busy=(${(onk)skipped})
+	case $1 in
+		session) s="session open to $HOST" ;;
+		idle)    s="no ssh session to $HOST (databases only)" ;;
+		down)    s="$HOST unreachable, nothing forwarded" ;;
+	esac
+	if [[ $1 != down ]]; then
+		s+=$'\n'"forwarded: ${fwd:-none}"
+		(( ${#busy} )) && s+=$'\n'"skipped (port busy here): $busy"
+		s+=$'\n'"phone: $( (( adb_linked )) && echo "laptop adb -> $HOST:$ADB_REMOTE_PORT" || echo "not linked")"
+	fi
+	[[ "$s" == "$last_status" ]] && return
+	last_status=$s
+	print -r -- "$s" > "$STATE/status"
+}
+
+# $1: session (every listening port) | idle (ALWAYS_PORTS only)
+sync_ports() {
+	local out p
+	out=$("${SSH[@]}" "$HOST" "ss -tlnH | awk '{print \$4}'") || return 1
+
+	typeset -A want
+	for p in ${(f)out}; do
+		p=${p##*:}
+		(( p >= PORT_MIN && p <= PORT_MAX )) || continue
+		(( ${SKIP_PORTS[(Ie)$p]} )) && continue
+		[[ $1 == idle ]] && (( ! ${ALWAYS_PORTS[(Ie)$p]} )) && continue
+		want[$p]=1
+	done
+
+	for p in ${(k)want}; do
+		(( ${+forwarded[$p]} )) && continue
+		# Something here already owns the port (local postgres, a native dev
+		# server...). Leave it alone and retry once it frees up.
+		if [[ -n "$(lsof -nP -iTCP:$p -sTCP:LISTEN -t 2>/dev/null)" ]]; then
+			(( ${+skipped[$p]} )) || log "skip $p: in use on this machine"
+			skipped[$p]=1
+			continue
+		fi
+		unset "skipped[$p]"
+		if "${SSH[@]}" -O forward -L "${p}:localhost:${p}" "$HOST" 2>/dev/null; then
+			forwarded[$p]=1
+			log "forward $p"
+		fi
+	done
+
+	for p in ${(k)forwarded}; do
+		(( ${+want[$p]} )) && continue
+		"${SSH[@]}" -O cancel -L "${p}:localhost:${p}" "$HOST" 2>/dev/null
+		unset "forwarded[$p]"
+		log "close $p"
+	done
+	for p in ${(k)skipped}; do
+		(( ${+want[$p]} )) || unset "skipped[$p]"
+	done
+}
+
+link_adb() {
+	(( adb_linked )) && return
+	command -v adb >/dev/null || return
+	# The tunnel has to end at a live server, or adb on the desktop hangs.
+	adb start-server >/dev/null 2>&1 || return
+	if "${SSH[@]}" -O forward -R "${ADB_REMOTE_PORT}:localhost:5037" "$HOST" 2>/dev/null; then
+		adb_linked=1
+		log "adb linked"
+	fi
+}
+
+sync_clipboard() {
+	local img="$STATE/clip.png" res
+	res=$(osascript -l JavaScript "$HERE/clipboard-image.js" "$clip_count" "$img" 2>/dev/null) || return
+	clip_count=${res%% *}
+	[[ "$res" == *" image" ]] || return
+	# Tailscale SSH starts sessions without the desktop's runtime dir, so point
+	# wl-copy at the compositor ourselves. Its output is detached because it
+	# stays behind to serve the clipboard and would otherwise hold ssh open.
+	"${SSH[@]}" "$HOST" '
+		export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+		for s in $XDG_RUNTIME_DIR/wayland-*(N=); do export WAYLAND_DISPLAY=${s:t}; done
+		[ -n "$WAYLAND_DISPLAY" ] && wl-copy -t image/png >/dev/null 2>&1' < "$img" \
+		&& log "clipboard image sent"
+}
+
+unlink_adb() {
+	(( adb_linked )) || return
+	"${SSH[@]}" -O cancel -R "${ADB_REMOTE_PORT}:localhost:5037" "$HOST" 2>/dev/null
+	adb_linked=0 clip_count=""
+	log "session closed, back to databases only"
+}
+
+teardown() {
+	local p
+	if "${SSH[@]}" -O check "$HOST" 2>/dev/null; then
+		for p in ${(k)forwarded}; do
+			"${SSH[@]}" -O cancel -L "${p}:localhost:${p}" "$HOST" 2>/dev/null
+		done
+		unlink_adb
+	fi
+}
+
+trap 'teardown; rm -f "$STATE/status"; exit 0' INT TERM
+
+log "watching $HOST"
+reachable=1
+while true; do
+	session_open && mode=session || mode=idle
+
+	# Forwards die with the connection (sleep, network change). Forget them so
+	# they are rebuilt on the new one instead of assumed to still exist.
+	if (( ${#forwarded} || adb_linked )) && ! "${SSH[@]}" -O check "$HOST" 2>/dev/null; then
+		log "connection lost, rebuilding forwards"
+		forwarded=() adb_linked=0
+	fi
+
+	if sync_ports $mode; then
+		(( reachable )) || log "$HOST reachable again"
+		reachable=1
+		if [[ $mode == session ]]; then
+			link_adb
+			sync_clipboard
+		else
+			unlink_adb
+		fi
+		write_status $mode
+		[[ $mode == session ]] && sleep 2 || sleep 5
+	else
+		(( reachable )) && log "$HOST unreachable"
+		reachable=0 forwarded=() skipped=() adb_linked=0
+		write_status down
+		sleep 30
+	fi
+done

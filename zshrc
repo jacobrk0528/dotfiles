@@ -36,11 +36,52 @@ if [[ "$(uname)" == "Darwin" ]]; then
     source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
     export ANDROID_HOME="$HOME/Library/Android/sdk"
     export PATH="$PATH:/usr/local/opt/postgresql@17/bin"
+    # The databases live on the desktop; optimus-link forwards them to
+    # localhost. Point the clients at TCP instead of a local socket that no
+    # longer has a server behind it.
+    export PGHOST=localhost MYSQL_HOST=127.0.0.1
 else
     source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
     source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
     export ANDROID_HOME="$HOME/Android/Sdk"
     alias hyprland="uwsm start hyprland-uwsm.desktop"
+
+    # Working from the laptop over ssh (see mac/optimus-link). While it is
+    # connected, the laptop's adb server is tunnelled to :5038 here. Before each
+    # prompt, switch adb/gradle/flutter over to it if a phone is plugged in
+    # there, and back to this machine's own server otherwise. Asks the server
+    # directly instead of running `adb devices`, which would spawn a stray
+    # daemon on :5038 whenever the tunnel is down.
+    zmodload zsh/net/tcp zsh/system
+    _laptop_adb() {
+        unset ANDROID_ADB_SERVER_PORT
+        local fd chunk reply
+        ztcp 127.0.0.1 5038 2>/dev/null || return 0
+        fd=$REPLY
+        print -n -u $fd '000chost:devices'
+        while sysread -t 1 -i $fd chunk 2>/dev/null; do reply+=$chunk; done
+        ztcp -c $fd
+        [[ "$reply" == *$'\tdevice'* ]] && export ANDROID_ADB_SERVER_PORT=5038
+        return 0
+    }
+    precmd_functions+=(_laptop_adb)
+
+    # optimus-link also pushes images copied on the laptop into this desktop's
+    # clipboard. An ssh shell has no WAYLAND_DISPLAY to read it with, so lend
+    # Claude Code the running session's for that one process rather than
+    # exporting a desktop's variables into the whole ssh shell.
+    if [[ -n "$SSH_CONNECTION" && -z "$WAYLAND_DISPLAY" ]]; then
+        claude() {
+            local xdg=${XDG_RUNTIME_DIR:-/run/user/$UID} sock display
+            # (N=) selects sockets only, which skips the wayland-N.lock files.
+            for sock in $xdg/wayland-*(N=); do display=${sock:t}; done
+            if [[ -n "$display" ]]; then
+                XDG_RUNTIME_DIR=$xdg WAYLAND_DISPLAY=$display command claude "$@"
+            else
+                command claude "$@"
+            fi
+        }
+    fi
 fi
 
 export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools"

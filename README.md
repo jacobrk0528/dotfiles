@@ -92,6 +92,13 @@ What does carry over:
     runtime, so those two cards hide rather than break if macOS changes it. The real Dock is
     auto-hidden; pin apps by dragging them into it. Run
     `mac/glassbar/install.sh` after editing `GlassBar.swift` to rebuild and restart it.
+*   **optimus-link**: `mac/optimus-link/` is a LaunchAgent that makes `ssh optimus` feel local.
+    While a terminal has a session open it forwards every port listening on the desktop to the
+    same port here (ports already in use on the Mac are left alone), tunnels the Mac's adb
+    server to the desktop so builds there install to a phone plugged in here, and pushes images
+    copied on the Mac into the desktop's clipboard so ctrl+v in Claude Code pastes them. It all
+    closes with the last session. `optimus-link status` shows what is forwarded; logs are in
+    `~/Library/Logs/optimus-link.log`. Run `mac/optimus-link/install.sh` after editing it.
 *   Everything else shared between platforms (`nvim`, `ghostty`, `tmux`, `zshrc`, `yazi`,
     `oh-my-zsh`, `scripts/ntfy`, `gitconfig`, `sqlfluff`) is linked identically by `scripts/link.sh`.
 
