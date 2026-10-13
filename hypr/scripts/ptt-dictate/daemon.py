@@ -28,174 +28,8 @@ import numpy as np
 import sounddevice as sd
 from faster_whisper import WhisperModel
 
-# Whisper already infers comma/period/question-mark/etc. from speech
-# cadence reasonably well, so we don't override those (saying "period"
-# to mean the word vs. the punctuation is ambiguous from text alone).
-# Kept here are only commands for words rarely used literally in normal
-# sentences (parens, colon) plus things Whisper has no way to infer
-# (literal newlines). Longer phrases first so "new paragraph" matches
-# before "new line" would (wrongly) swallow just "new".
-# "OPEN"/"CLOSE" sentinels mark directional punctuation (no space after
-# an opener, no space before a closer) and get resolved after spacing
-# cleanup, since "(" and ")" need opposite rules.
-_OPEN, _CLOSE = "\x01", "\x02"
-VOICE_COMMANDS = [
-    ("new paragraph", "\n\n"),
-    ("new line", "\n"),
-    ("newline", "\n"),
-    ("open paren", _OPEN + "("),
-    ("open parenthesis", _OPEN + "("),
-    ("open parentheses", _OPEN + "("),
-    ("close paren", _CLOSE + ")"),
-    ("close parenthesis", _CLOSE + ")"),
-    ("close parentheses", _CLOSE + ")"),
-    ("colon", ":"),
-]
-_COMMAND_RE = re.compile(
-    r"\b(" + "|".join(re.escape(p) for p, _ in VOICE_COMMANDS) + r")\b",
-    re.IGNORECASE,
-)
-_COMMAND_MAP = {p: r for p, r in VOICE_COMMANDS}
-# No space before punctuation/closers ("hello :" -> "hello:")
-_SPACE_BEFORE_PUNCT_RE = re.compile(r"\s+(:|" + _CLOSE + r")")
-# No space after openers
-_SPACE_AFTER_OPEN_RE = re.compile(_OPEN + r"(.)\s+")
-# Collapse whitespace around inserted newlines
-_SPACE_AROUND_NL_RE = re.compile(r"[ \t]*\n[ \t]*")
-
-
-def apply_voice_commands(text):
-    text = _COMMAND_RE.sub(lambda m: _COMMAND_MAP[m.group(1).lower()], text)
-    text = _SPACE_AFTER_OPEN_RE.sub(r"\1", text)
-    text = _SPACE_BEFORE_PUNCT_RE.sub(r"\1", text)
-    text = text.replace(_OPEN, "").replace(_CLOSE, "")
-    text = _SPACE_AROUND_NL_RE.sub("\n", text)
-    text = re.sub(r"[ \t]{2,}", " ", text)
-    return text.strip()
-
-
-_NUM_WORDS = {
-    w: i + 1
-    for i, w in enumerate(
-        "one two three four five six seven eight nine ten eleven twelve "
-        "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split()
-    )
-}
-# A line that starts with "new line"/"new paragraph" is a plausible list
-# item if it also starts with a number: "1 xyz", "1) xyz", "one: xyz".
-_LIST_ITEM_RE = re.compile(
-    r"^\s*(\d{1,2}|" + "|".join(_NUM_WORDS) + r")\b[.:)]?\s+(.*)$",
-    re.IGNORECASE,
-)
-
-
-# Any number token, anywhere in the text (not just line-start) - used to
-# spot spoken lists like "1 xyz 2 abc 3 def" with no "new line" between
-# items.
-_NUM_TOKEN_RE = re.compile(
-    r"\b(\d{1,2}|" + "|".join(_NUM_WORDS) + r")\b", re.IGNORECASE
-)
-
-
-def _preceding_word(text, pos):
-    j = pos
-    while j > 0 and text[j - 1] in " \t":
-        j -= 1
-    end = j
-    while j > 0 and text[j - 1].isalpha():
-        j -= 1
-    return text[j:end]
-
-
-# A real dictated list item ("1 xyz", "2 abc") is short. If the next
-# expected number doesn't show up within this many words, it's more
-# likely an incidental number deep in the current item's own content
-# ("2 I bought a shirt and it turns out it was actually the wrong size
-# so I had to drive back to the mall and get 3 different ones instead")
-# than a real next marker - so the run stops there instead of grabbing
-# a coincidental later match.
-MAX_MARKER_GAP_WORDS = 12
-
-
-def _word_gap(text, start, end):
-    return len(text[start:end].split())
-
-
-def explode_inline_lists(text):
-    """Insert a line break before each marker of an inline 1,2,3,...
-    sequence. Requires the run to start at 1 (not just any two
-    consecutive numbers) since ordinary sentences rarely enumerate
-    starting from one - "grab 2 or 3 apples" won't trigger, but
-    "1 xyz 2 abc" will. Also skips any number directly preceded by the
-    word "number" ("line number two") - that's a reference, not a list
-    marker, and without this a phrase like "number one ... number two"
-    scattered through unrelated text would falsely read as a list."""
-    all_matches = list(_NUM_TOKEN_RE.finditer(text))
-    matches = [m for m in all_matches if _preceding_word(text, m.start()).lower() != "number"]
-    values = [
-        int(m.group(0)) if m.group(0).isdigit() else _NUM_WORDS[m.group(0).lower()]
-        for m in matches
-    ]
-
-    runs = []
-    i = 0
-    while i < len(matches):
-        if values[i] == 1:
-            j = i
-            while (
-                j + 1 < len(matches)
-                and values[j + 1] == values[j] + 1
-                and _word_gap(text, matches[j].end(), matches[j + 1].start()) <= MAX_MARKER_GAP_WORDS
-            ):
-                j += 1
-            if j > i:
-                runs.append((i, j))
-                i = j + 1
-                continue
-        i += 1
-    if not runs:
-        return text
-
-    split_at = sorted({matches[k].start() for start, end in runs for k in range(start, end + 1)}, reverse=True)
-    for pos in split_at:
-        left = pos
-        while left > 0 and text[left - 1] in " \t":
-            left -= 1
-        if left == 0:
-            continue
-        text = text[:left] + "\n" + text[pos:]
-    return text
-
-
-def format_lists(text):
-    lines = text.split("\n")
-    matches = [_LIST_ITEM_RE.match(line) for line in lines]
-    matched_idx = [i for i, m in enumerate(matches) if m is not None]
-    # Only treat as a list if at least two lines look like list items - a
-    # single leading number is more likely just "3 dogs ran by" than a list.
-    if len(matched_idx) < 2:
-        return text
-
-    # Number every line in the span from the first to the last recognized
-    # marker, not just the ones that matched: a homophone miss ("two" ->
-    # "to") means a real list item can slip through without matching, but
-    # once we know it's a list, position tells us the number anyway.
-    start, end = matched_idx[0], matched_idx[-1]
-    first_token = matches[start].group(1)
-    first_num = int(first_token) if first_token.isdigit() else _NUM_WORDS[first_token.lower()]
-
-    for offset, i in enumerate(range(start, end + 1)):
-        num = first_num + offset
-        m = matches[i]
-        rest = m.group(2) if m is not None else lines[i]
-        lines[i] = f"{num}) {rest}"
-    return "\n".join(lines)
-
-
-# --- Gemini-based formatting (trial: local regex pipeline was too fragile
-# on some phrasing; testing whether a hosted model does noticeably better).
-# Falls back to the regex pipeline above if no key is set or the call
-# fails, so dictation never breaks because of network/API issues. ---
+# Gemini handles all punctuation, voice commands, and list formatting.
+# If unavailable, use the transcript unchanged by any local formatting rules.
 
 GEMINI_MODEL = "gemini-flash-lite-latest"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
@@ -206,9 +40,14 @@ GEMINI_PRICE_IN_PER_M = 0.25
 GEMINI_PRICE_OUT_PER_M = 1.50
 
 USAGE_LOG = os.path.expanduser("~/.local/share/ptt-dictate/usage.jsonl")
+# Every dictation exactly as typed, Gemini or not ({"ts", "text"} per line).
+# Read by `ptt_dictate.sh copy-last` (Insert) and the quickshell history panel
+# (SUPER+Insert). USAGE_LOG can't serve: it only records Gemini calls, and
+# holds the pre-fallback text when formatting fails.
+HISTORY_LOG = os.path.expanduser("~/.local/share/ptt-dictate/history.jsonl")
 
 # Existence toggles Gemini formatting off without touching the API key in
-# secrets.env or restarting the daemon - checked fresh on every dictation,
+# ~/dotfiles/.env or restarting the daemon - checked fresh on every dictation,
 # so `touch`/`rm` this file to flip it live.
 GEMINI_DISABLE_FLAG = os.path.expanduser("~/.config/ptt-dictate/gemini-disabled")
 
@@ -298,6 +137,16 @@ def log_usage(record):
         f.write(json.dumps(record) + "\n")
 
 
+def log_history(text):
+    try:
+        os.makedirs(os.path.dirname(HISTORY_LOG), exist_ok=True)
+        with open(HISTORY_LOG, "a") as f:
+            f.write(json.dumps({"ts": datetime.now(timezone.utc).isoformat(), "text": text}) + "\n")
+    except OSError as e:
+        # History is a convenience; never let it cost the dictation itself
+        print(f"history log failed: {e}", file=sys.stderr)
+
+
 _WORD_RE = re.compile(r"[a-z0-9']+")
 
 
@@ -322,7 +171,7 @@ def gemini_format(raw_text):
     """Returns formatted text, or None if unavailable (missing key,
     network error, unexpected response) or if the model answered the
     transcript instead of formatting it, so the caller can fall back to
-    the local regex pipeline."""
+    the unformatted transcript."""
     if not gemini_enabled():
         return None
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -790,7 +639,8 @@ def process_audio(audio, mic_rate, mode):
     text = apply_corrections(text, corrections)
     formatted = gemini_format(text)
     if formatted is None:
-        formatted = format_lists(explode_inline_lists(apply_voice_commands(text)))
+        formatted = text
+    log_history(formatted)
     type_text(formatted)
 
 
@@ -910,8 +760,8 @@ def main():
     if find_mic_device() is None:
         notify("\u26a0 pipewire input device not found, dictation may not work", "critical")
     else:
-        formatter = "Gemini" if gemini_enabled() else "local regex"
-        notify(f"push-to-talk dictation ready ({formatter} formatting)")
+        formatting = "Gemini formatting" if gemini_enabled() else "unformatted transcript"
+        notify(f"push-to-talk dictation ready ({formatting})")
     set_state("idle")
 
     sd_notify("READY=1")

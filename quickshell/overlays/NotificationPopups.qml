@@ -71,7 +71,14 @@ PanelWindow {
 
         Repeater {
             id: repeater
-            model: Notifs.popups
+            // ScriptModel, not the array itself: it diffs each new popups list
+            // against the last and keeps the delegates of notifications still
+            // in it. A bare array rebuilds every card on each change, which
+            // restarted every card's timeout whenever the oldest one expired
+            // or a new one arrived, so a burst of ten cleared one at a time.
+            model: ScriptModel {
+                values: Notifs.popups
+            }
 
             NotificationCard {
                 required property var modelData

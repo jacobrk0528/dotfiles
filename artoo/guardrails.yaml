@@ -1,0 +1,63 @@
+# artoo guardrails. Edit freely; it's re-read on every run.
+# Regexes are case-insensitive. Use single quotes so backslashes survive YAML.
+
+# ── Ask first ────────────────────────────────────────────────────────────────
+# Before an action runs, it's checked two ways, and either one triggers a y/N prompt:
+#   1. rules: the action's own risk tags, plus regexes on the target's label, the page URL,
+#      or a shell command
+#   2. Jev: one yes/no question per category, from its description. Asks when
+#      P(yes) > jev_threshold.
+# With no terminal to ask on (keybind/voice), a prompt counts as "no".
+jev_threshold: 0.35
+
+ask_first:
+  destructive:
+    description: Deletes, removes, overwrites, resets, or discards files, data, messages, windows, or settings
+    labels: ['\b(delete|remove|discard|trash|erase|overwrite|reset|clear all|empty)\b']
+    commands: ['\brm\b', '\bmv\b', '\bdd\b', 'mkfs', '\btruncate\b', 'git (reset --hard|clean|push -f|push --force|checkout --|restore)',
+               '(?<![0-9&])>(?!\s*(/dev/null|&))', '\btee\b', '\bsed\b.*\s-i', '\bshred\b']
+  purchase:
+    description: Buys something, spends money, places an order, or submits payment details
+    labels: ['\b(buy|purchase|checkout|check out|place order|pay|add payment|upgrade)\b']
+    urls: ['/checkout', '/cart', '/payment', '/billing', '/buy']
+  subscribe:
+    description: Starts, changes, or cancels a subscription, membership, free trial, or newsletter sign-up
+    labels: ['\b(subscribe|unsubscribe|sign ?up|start (free )?trial|join|membership|cancel (my )?(plan|subscription|membership))\b']
+  send_message:
+    description: Sends, posts, replies, or publishes something other people will see (email, chat, comment, post)
+    labels: ['\b(send|post|reply|publish|comment|tweet|submit)\b']
+    commands: ['git push', '\bcurl\b.*(-X\s*(POST|PUT|PATCH|DELETE)|--data|-d\s)', '\b(notify-send|ntfy)\b', '\bgh\s+(pr|issue)\s+(create|comment|merge|close)']
+  share_access:
+    description: Shares a file, report, or folder, or changes who can view or edit it
+    labels: ['\b(share|invite|add people|permissions?|make public|anyone with the link)\b']
+  account_settings:
+    description: Changes passwords, two-factor authentication, security settings, or deletes or deactivates an account
+    labels: ['\b(password|2fa|two-factor|security|deactivate|close account)\b']
+    urls: ['myaccount\.google\.com', 'accounts\.google\.com', '/settings/security']
+  install_software:
+    description: Installs, updates, or removes software, extensions, or packages
+    labels: ['\b(install|add to (chrome|brave)|add extension)\b']
+    commands: ['\b(pacman|yay|paru|apt|brew|npm|bun add|pip|uv add)\b']
+  system_changes:
+    description: Stops or kills programs, changes system services or settings, changes file permissions, or reboots or shuts down the computer
+    commands: ['\b(kill|pkill|killall)\b', 'systemctl\s+(--user\s+)?(start|stop|restart|enable|disable|mask|kill)', '\b(reboot|shutdown|poweroff|suspend|hibernate)\b',
+               '\b(chmod|chown)\b', 'hyprctl\s+(keyword|reload|kill)', '\bcrontab\b']
+  sudo:
+    description: Runs something with administrator (root) privileges
+    commands: ['\bsudo\b', '\bpkexec\b', '\bdoas\b']
+
+# ── Reading ──────────────────────────────────────────────────────────────────
+# Read/navigation is allowed by default. Optional exceptions can still be added here.
+# All writes/destructive/unknown operations require approval in policy.ts, regardless
+# of these legacy category rules or model confidence.
+never_look:
+  apps: []
+  sites: []
+  fields:          # form fields whose values are never sent (matched on label/name/id/autocomplete)
+    - 'pass(word)?|secret|token|api.?key|private.?key|otp|one.time|2fa|mfa|cvv|cvc|card|ssn|social.security|routing|account.?number'
+
+# ── Redaction ────────────────────────────────────────────────────────────────
+# Built in: API-key and token shapes (sk-…, ghp_…, AKIA…, xox…, JWTs), long hex/base64
+# strings, card numbers, and URL query strings. Add your own below.
+redact:
+  extra_patterns: []

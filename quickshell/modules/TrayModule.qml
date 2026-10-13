@@ -10,7 +10,7 @@ Item {
     property var bar
 
     visible: SystemTray.items.values.length > 0
-    implicitWidth: visible ? trayRow.implicitWidth + 16 : 0
+    implicitWidth: visible ? trayRow.implicitWidth + 28 : 0
 
     Row {
         id: trayRow

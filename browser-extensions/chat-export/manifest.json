@@ -41,6 +41,17 @@
         "content/main.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://grok.com/*"
+      ],
+      "js": ["content/newline-key.js"],
+      "run_at": "document_start"
     }
   ]
 }

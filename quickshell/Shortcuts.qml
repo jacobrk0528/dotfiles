@@ -38,6 +38,13 @@ Scope {
 
     GlobalShortcut {
         appid: "quickshell"
+        name: "dictationHistory"
+        description: "Open dictation history"
+        onPressed: Panels.toggle("dictation-history")
+    }
+
+    GlobalShortcut {
+        appid: "quickshell"
         name: "wallpapers"
         description: "Open the wallpaper picker"
         onPressed: Panels.toggle("wallpapers")
@@ -62,6 +69,20 @@ Scope {
         name: "ai"
         description: "Open the AI quick-ask widget"
         onPressed: AiShot.captureThenOpen()
+    }
+
+    GlobalShortcut {
+        appid: "quickshell"
+        name: "jev"
+        description: "Focus the artoo prompt in the dock"
+        onPressed: JevFocus.requested()
+    }
+
+    GlobalShortcut {
+        appid: "quickshell"
+        name: "jevHistory"
+        description: "Open artoo conversation history"
+        onPressed: Panels.toggle("jev-history")
     }
 
     GlobalShortcut {

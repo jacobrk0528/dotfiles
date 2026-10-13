@@ -37,6 +37,8 @@ Singleton {
     }
 
     function announce(p) {
+        if (!Notifs.songAllowed)
+            return;
         root.title = p.trackTitle;
         root.artist = p.trackArtist;
         root.artUrl = p.trackArtUrl;
@@ -44,6 +46,14 @@ Singleton {
         root.active = true;
         // Restart rather than queue: skipping through tracks replaces content.
         hideTimer.restart();
+    }
+
+    Connections {
+        target: Notifs
+        function onSongAllowedChanged() {
+            if (!Notifs.songAllowed)
+                root.active = false;
+        }
     }
 
     Timer {

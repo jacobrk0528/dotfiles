@@ -132,13 +132,13 @@ launch_to "special:slack" '^slack$' "" slack &
 launch_to "special:btop" '^com\.jkrebs\.btop$' "" \
     ghostty --class=com.jkrebs.btop --title=btop -e bash -c btop &
 launch_to "2" '^com\.jkrebs\.term$' "" ghostty --class=com.jkrebs.term &
-# Brave, twice: workspaces 3 and 1, both on the new tab page, both in the
-# Default ("Work") profile. Naming the profile skips the profile picker,
-# which is still what a manual launch gets.
+# Brave, four windows, all on the new tab page: the Default ("Work") profile
+# on workspaces 3 and 1, the "Personal" profile on 5 and 7. Naming the profile
+# skips the profile picker, which is still what a manual launch gets.
 # The systemd scope caps Brave's memory — see the `browser` comment in
-# hyprland.lua for why. Only the first launch needs it: the second joins the
+# hyprland.lua for why. Only the first launch needs it: the rest join the
 # already-running process, and therefore the same cgroup.
-# Serialised, because all three share the brave-browser window class and two
+# Serialised, because they all share the brave-browser window class and two
 # in flight at once could not be told apart.
 (
     launch_to "3" '^brave-browser$' "" bash -c \
@@ -148,6 +148,10 @@ launch_to "2" '^com\.jkrebs\.term$' "" ghostty --class=com.jkrebs.term &
     # "Personal" profile. launch_all_to because this profile restores a
     # session, so it maps its old windows alongside the new tab.
     launch_all_to "5" '^brave-browser$' "" \
+        brave --profile-directory="Profile 1" --new-window "chrome://newtab"
+    # Second Personal window. The profile is already open by now, so there is
+    # no session restore and plain launch_to is enough.
+    launch_to "7" '^brave-browser$' "" \
         brave --profile-directory="Profile 1" --new-window "chrome://newtab"
 ) &
 wait

@@ -9,6 +9,7 @@ ColumnLayout {
     id: root
 
     property bool expanded: false
+    property bool showHeader: true
 
     readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
     readonly property var connected: Bluetooth.devices.values.filter(d => d.connected)
@@ -19,14 +20,17 @@ ColumnLayout {
     }
 
     // Discovery costs battery on peripherals; only scan while open.
-    onExpandedChanged: {
-        if (root.adapter && root.adapter.enabled)
-            root.adapter.discovering = root.expanded;
+    Binding {
+        target: root.adapter
+        property: "discovering"
+        value: root.expanded && (root.adapter?.enabled ?? false)
+        when: root.adapter !== null
     }
 
     spacing: 2
 
     ExpanderRow {
+        visible: root.showHeader
         glyph: {
             if (!root.adapter || !root.adapter.enabled)
                 return "󰂲";

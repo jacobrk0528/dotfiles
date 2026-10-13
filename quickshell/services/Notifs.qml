@@ -11,17 +11,118 @@ import QtQuick
 //   all     — everything still tracked, shown in the notification center
 // A notification leaving the popup list stays in the center until dismissed.
 // Blocked apps (by appName) are dropped entirely — no popup, no center entry.
-// Priority apps bypass Do Not Disturb and still pop up while DND is on.
+// Active focus modes allow only their selected notification categories.
 Singleton {
     id: root
 
-    property bool doNotDisturb: false
+    property string focusMode: ""
+    readonly property bool doNotDisturb: focusMode !== ""
+    property string lastFocusMode: "dnd"
+    property var focusRules: ({
+        dndSong: false, dndSlack: false, dndMessages: false, dndGroupMe: false, dndPhone: false, dndSystem: false,
+        workSong: true, workSlack: true, workMessages: false, workGroupMe: false, workPhone: false, workSystem: true,
+        focusSong: true, focusSlack: false, focusMessages: false, focusGroupMe: false, focusPhone: false, focusSystem: true,
+        personalSong: true, personalSlack: false, personalMessages: true, personalGroupMe: true, personalPhone: false, personalSystem: true
+    })
+    readonly property var focusModes: [
+        { key: "dnd", label: "DND", glyph: "󰂛" },
+        { key: "work", label: "Work", glyph: "󰒖" },
+        { key: "focus", label: "Focus", glyph: "󰓾" },
+        { key: "personal", label: "Personal", glyph: "󰀄" }
+    ]
+    readonly property string focusLabel: focusModes.find(m => m.key === focusMode)?.label ?? "Off"
+    readonly property string focusGlyph: focusModes.find(m => m.key === focusMode)?.glyph ?? "󰂛"
+    readonly property bool songAllowed: focusMode === "" || modeAllows(focusMode, "song")
     property var popups: []
 
     readonly property var all: server.trackedNotifications.values
     readonly property int count: all.length
     readonly property var blockedApps: adapter.blockedApps
     readonly property var priorityApps: adapter.priorityApps
+
+    function modeAllows(mode, category) {
+        const suffix = { song: "Song", slack: "Slack", messages: "Messages", groupme: "GroupMe", phone: "Phone", system: "System" }[category];
+        return suffix ? focusRules[mode + suffix] === true : false;
+    }
+
+    function setModeRule(mode, category, allowed) {
+        const suffix = { song: "Song", slack: "Slack", messages: "Messages", groupme: "GroupMe", phone: "Phone", system: "System" }[category];
+        if (suffix && focusModes.some(m => m.key === mode)) {
+            let rules = Object.assign({}, focusRules);
+            rules[mode + suffix] = allowed;
+            focusRules = rules;
+            saveFocus();
+            filterPopups();
+        }
+    }
+
+    function setFocus(mode) {
+        if (mode !== "" && !focusModes.some(m => m.key === mode)) return;
+        if (mode !== "") lastFocusMode = mode;
+        focusMode = mode;
+        saveFocus();
+    }
+
+    function toggleFocus() {
+        setFocus(focusMode === "" ? lastFocusMode : "");
+    }
+
+    function categoryFor(key) {
+        const name = key.toLowerCase();
+        if (["hyprshot", "ptt-dictate", "night mode", "process watch"].includes(name)) return "system";
+        if (name === "slack" || name === "kde connect: slack") return "slack";
+        if (["messages", "kde connect: messages"].includes(name)) return "messages";
+        if (["groupme", "kde connect: groupme"].includes(name)) return "groupme";
+        return "";
+    }
+
+    function allowsPopup(key) {
+        const name = key.toLowerCase();
+        const phone = name === "kde connect" || name.startsWith("kde connect:");
+        return focusMode === "" || (phone && modeAllows(focusMode, "phone")) || modeAllows(focusMode, categoryFor(key));
+    }
+
+    function filterPopups() {
+        popups = popups.filter(n => allowsPopup(appKey(n.appName, n.summary)));
+    }
+
+    onFocusModeChanged: filterPopups()
+
+    function saveFocus() {
+        focusFile.setText(JSON.stringify(Object.assign({}, focusRules, {
+            activeMode: focusMode, lastMode: lastFocusMode
+        }), null, 4));
+    }
+
+    function loadFocus() {
+        try {
+            const data = JSON.parse(focusFile.text());
+            let rules = Object.assign({}, focusRules);
+            for (const key of Object.keys(rules)) {
+                if (typeof data[key] === "boolean") rules[key] = data[key];
+            }
+            // Older settings combined Messages and GroupMe; preserve both.
+            for (const mode of focusModes) {
+                if (typeof data[mode.key + "GroupMe"] !== "boolean" && typeof data[mode.key + "Messages"] === "boolean")
+                    rules[mode.key + "GroupMe"] = data[mode.key + "Messages"];
+            }
+            focusRules = rules;
+            focusMode = focusModes.some(m => m.key === data.activeMode) ? data.activeMode : "";
+            lastFocusMode = focusModes.some(m => m.key === data.lastMode) ? data.lastMode : "dnd";
+            filterPopups();
+        } catch (e) {
+            console.warn("Could not load focus-mode settings:", e);
+        }
+    }
+
+    FileView {
+        id: focusFile
+        path: Quickshell.env("HOME") + "/dotfiles/quickshell/focus-modes.json"
+        preload: true
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: root.loadFocus()
+    }
 
     // KDE Connect forwards every phone notification under the one appName
     // "KDE Connect", with the phone-side app's own name only showing up in
@@ -224,7 +325,7 @@ Singleton {
             notif.tracked = true;
             root.appendHistory(notif);
 
-            if (!root.doNotDisturb || root.isPriority(key))
+            if (root.allowsPopup(key))
                 root.popups = [notif].concat(root.popups);
 
             notif.closed.connect(() => root.dismissPopup(notif));

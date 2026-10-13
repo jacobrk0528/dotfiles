@@ -35,7 +35,7 @@ Anything new in the repo root must also be listed in `qmldir`, or QML will not s
 ## Surfaces
 
 **Bar** — workspaces (special workspaces hidden), minimized count, dictation, clock with
-calendar popup, network, volume, notifications, tray.
+calendar popup, control center button, notifications, tray.
 Clicking workspaces dispatches straight to the `hl.dsp.focus()` Lua dispatchers, so the old
 `hypr_ipc_proxy.py` translation layer is gone.
 
@@ -59,32 +59,64 @@ monitor, carry an urgency stripe and a timeout bar, pause on hover, and support 
 Everything stays in the center until dismissed. `SUPER+N` opens it; the bell toggles
 do-not-disturb on right-click.
 
-**Control center** (`SUPER+C`, or click the volume module) — output device and volume, output
-switcher, per-app volume sliders with live peak meters, a media card per MPRIS player (same
+**Control center** (`SUPER+C`, or click the switches button in the bar) — output device and volume, output
+switcher, per-app volume sliders with live peak meters, a carousel of media cards, one per MPRIS player (same
 `desktop/MediaCard.qml` as the desktop widgets, so every player shows up, not just whichever
 one is playing — its stream is excluded from the per-app volume list to avoid a duplicate
-slider), network (wired status, Wi-Fi list and radio toggle) and Bluetooth (adapter power,
-paired devices with battery, connect/disconnect), plus quick toggles. Joining an unknown Wi-Fi
-network hands off to `nmtui-connect` since it needs a passphrase.
+slider), plus a four-column grid of square Network, Bluetooth, Night mode, and Focus icon tiles.
+Left-click toggles Wi-Fi, Bluetooth power, night mode, or the last focus mode; Ethernet opens its details.
+Right-click opens the shared settings pane for wired status/Wi-Fi connections, paired
+Bluetooth devices with battery and connect/disconnect, or night-mode preferences.
+Joining an unknown Wi-Fi
+network hands off to `nmtui-connect` since it needs a passphrase. Click the Night
+tile to turn it on/off. Right-click it for an adjacent
+settings pane with a 1000–6500K slider, schedule toggle, and editable on/off times.
+The default schedule is 18:00–08:00 local time; login always starts off. Manual
+overrides last until the next scheduled transition, including after suspend.
+Settings persist in `~/.local/state/hypr/night-mode.json`. Quickshell checks for
+transitions every 10 seconds. `SUPER+CTRL+N` still toggles the filter manually.
 
-**AI quick-ask** (`SUPER+A`) — type a question or an instruction, Enter runs it through the
-`claude` CLI headless (`claude -p`, this machine's Claude Code subscription login, not a
-separate API key) with Bash and WebSearch, so it can answer plainly or actually act ("open
-Chrome") and reports back in a sentence or two. One-shot, no session persistence. Before the
-panel opens, `services/AiShot.qml` grabs a silent `grim` screenshot of the focused monitor and
-only then opens it — done first so the capture is the real screen, not the blur Hyprland
-applies to this panel's layer (`hypr/hyprland.lua`, `quickshell-overlay` namespace) once it's
-mapped. That screenshot grants the Read tool for the ask, so you can ask about whatever's on
-screen — "󰄀 sees your screen" shows next to the input whenever a question will include it.
-The same box also sits on the desktop widget
-layer (`desktop/AiCard.qml`, bottom left) as its own independent `claude` process, without the
-screenshot — asking from one doesn't interrupt the other.
+**Focus modes** — left-click Focus to toggle the last selected mode, or right-click
+to choose DND, Work, Focus, or Personal and edit the allowed categories. Defaults:
+DND allows nothing; Work allows new-song OSDs, Process watch, and Slack; Focus
+allows songs and Process watch; Personal allows songs, Process watch, Messages,
+and GroupMe (native or forwarded by KDE Connect), with separate switches for each.
+Phone allows all KDE Connect notifications and starts disabled in every mode.
+With Phone off, individual app switches can still allow forwarded notifications.
+Other popups are silenced while a mode
+is active, including priority apps; globally blocked apps remain blocked. Silenced
+notifications still enter the notification center/history. With modes off, normal
+popup behavior returns. Rules and the last/current mode persist in `focus-modes.json`.
+
+**Extending control-center options:** use `components/ControlOption.qml` with
+an `onActivated` action and a `settingsComponent` containing a
+`components/ControlSettingsPane.qml` instance. The shared template supplies the
+title, X button, card styling, and return navigation. The control center loads
+that component to its left in the same overlay, keeping the main controls usable;
+on narrow screens it places settings over the control card. X or Escape dismisses
+only settings. Opening another main panel clears settings. Night mode is the
+first consumer; the shared components and navigation contain no night-mode logic.
+
+**AI quick-ask** (`SUPER+A`) — focuses `dock/JevPrompt.qml`, backed by
+`~/.local/bin/artoo ask --json` (`~/dotfiles/artoo`). Questions can navigate apps on
+other monitors and hidden/special workspaces, read screenshots and return an answer. The
+dock records the original desktop context; information lookups return there when finished.
+Reading/navigation is automatic; writing, sending, deleting and other changes require the
+Run/Cancel popup. Stop cancels the task and lets it restore the desktop. Desktop input is
+serialized across monitors. `SUPER+SHIFT+A` opens conversation history with steps, screenshots,
+inspection checklists, approvals and cost. See artoo's README for setup and `doctor`.
+The older Claude-backed `panels/Ai.qml` / `services/AiShot.qml` path remains a separate
+`quickshell:ai` shortcut; `SUPER+A` uses `quickshell:jev`.
 
 **Launcher** (`SUPER+Space` or `SUPER+D`) — fuzzy search over desktop entries, ranked by name
 prefix → name substring → keywords. Arrows to move, Enter to launch.
 
 **Clipboard** (`SUPER+V`) — searchable `cliphist` history; Enter copies, Del or middle-click
-removes an entry. Replaced the `cliphist | wofi` pipeline.
+removes an entry. Replaced the `cliphist | wofi` pipeline. Copied images are titled by a
+local vision model (`scripts/clip-label`, Ollama `gemma3:4b`; override with
+`CLIP_LABEL_MODEL`) so screenshots are listed and searchable by what they show instead of
+`[[ binary data … ]]`. Titles are cached in `~/.cache/cliphist/labels.tsv`;
+`clip-label --all` backfills old entries.
 
 **Power menu** (`SUPER+Escape`) — lock / log out / suspend / reboot / shut down.
 

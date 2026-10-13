@@ -57,6 +57,8 @@ ShellRoot {
     PowerMenu {}
     Cheatsheet {}
     Clipboard {}
+    DictationHistory {}
+    JevHistory {}
     Wallpapers {}
     Ai {}
     HomeAssistant {}

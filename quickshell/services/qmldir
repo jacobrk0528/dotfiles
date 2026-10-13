@@ -12,3 +12,5 @@ singleton OverlayStack OverlayStack.qml
 singleton AiShot AiShot.qml
 singleton HALights HALights.qml
 singleton DockApps DockApps.qml
+singleton JevFocus JevFocus.qml
+singleton NightMode NightMode.qml

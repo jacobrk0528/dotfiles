@@ -13,14 +13,49 @@ Overlay {
     panelName: "clipboard"
     contentAlign: Qt.AlignTop
 
-    // [{ id, preview, isImage }]
+    // [{ id, preview, isImage, meta }]; meta is "png 622x658" for images
     property var entries: []
+
+    // cliphist id -> title written by scripts/clip-label (local vision model)
+    property var labels: ({})
+    // cliphist id -> "YYYY-MM-DD HH:MM:SS" the image was copied, where known
+    property var stamps: ({})
+
+    function title(entry) {
+        if (!entry.isImage)
+            return entry.preview;
+        return root.labels[entry.id] ?? "Image";
+    }
+
+    FileView {
+        id: labelsFile
+        path: Quickshell.env("HOME") + "/.cache/cliphist/labels.tsv"
+        preload: true
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            const out = {};
+            const times = {};
+            for (const line of text().split("\n")) {
+                const cols = line.split("\t");
+                if (cols.length < 3)
+                    continue;
+                out[cols[0]] = cols[2];
+                if (cols[3])
+                    times[cols[0]] = cols[3];
+            }
+            root.labels = out;
+            root.stamps = times;
+        }
+    }
 
     onShownChanged: {
         if (shown) {
             search.text = "";
             list.currentIndex = 0;
             listProc.running = true;
+            // Catch up on any image the copy-time watcher missed.
+            Quickshell.execDetached([Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/clip-label"]);
             search.forceActiveFocus();
         }
     }
@@ -29,7 +64,7 @@ Overlay {
         const q = search.text.trim().toLowerCase();
         if (q === "")
             return root.entries;
-        return root.entries.filter(e => e.preview.toLowerCase().includes(q));
+        return root.entries.filter(e => root.title(e).toLowerCase().includes(q));
     }
 
     Process {
@@ -46,11 +81,14 @@ Overlay {
                     if (tab < 0)
                         continue;
                     const preview = line.slice(tab + 1);
+                    // "[[ binary data 231 KiB png 622x658 ]]"
+                    const binary = preview.match(/^\[\[ binary data .* (\S+ \d+x\d+) \]\]$/);
                     out.push({
                         id: line.slice(0, tab),
                         line: line,
                         preview: preview,
-                        isImage: preview.startsWith("[[ binary data")
+                        isImage: preview.startsWith("[[ binary data"),
+                        meta: binary ? binary[1] : ""
                     });
                 }
                 root.entries = out;
@@ -230,7 +268,23 @@ Overlay {
                             font.pixelSize: Theme.fontSize
                             color: Theme.textSecondary
                             elide: Text.ElideRight
-                            text: row.modelData.preview
+                            text: root.title(row.modelData)
+                        }
+
+                        Text {
+                            visible: text !== ""
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize - 2
+                            color: Theme.textDim
+                            text: root.stamps[row.modelData.id] ?? ""
+                        }
+
+                        Text {
+                            visible: text !== ""
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize - 2
+                            color: Theme.textDim
+                            text: row.modelData.meta
                         }
 
                         IconButton {

@@ -14,12 +14,12 @@ BarModule {
 
     tooltipText: {
         if (Notifs.doNotDisturb)
-            return "Do not disturb";
+            return Notifs.focusLabel + " mode";
         if (Notifs.count === 0)
             return "No notifications";
         return Notifs.count + " notification" + (Notifs.count === 1 ? "" : "s");
     }
 
     onLeftClicked: Panels.toggle("notifications")
-    onRightClicked: Notifs.doNotDisturb = !Notifs.doNotDisturb
+    onRightClicked: Notifs.toggleFocus()
 }

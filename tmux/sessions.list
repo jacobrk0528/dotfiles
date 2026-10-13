@@ -12,7 +12,7 @@
 #   autostart yes/no - created at login by start_tmux_sessions.sh
 #
 # Key policy: first letter of the session name, except where that letter is
-# already bound after the prefix (h = prev session, l = next session, f = fzf
+# already bound after the prefix (a/e/h/j/k/l = harpoon, f = fzf
 # picker, r = reload, H/J/K/L = pane nav, C-c = new session, Tab = last).
 # On collision fall through to the next distinctive letter of the name:
 #   t -> tom (first come), so trUtils takes 'u' (Utils) and narsil-main 'm'.
@@ -23,6 +23,6 @@ t      tom          tom          yes
 u      trUtils      trutils      yes
 n      narsil       narsil       yes
 m      narsil-main  narsil-main  yes
-e      event        event        yes
+v      event        event        yes
 d      dotfiles     dotfiles     yes
-b      bcUtils      bcutils      no
+b      bc_utils     bc_utils     yes

@@ -1,5 +1,6 @@
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
 import QtQuick
 import QtQuick.Layouts
 import ".."
@@ -7,7 +8,7 @@ import "../components"
 import "../modules"
 import "../services"
 
-// Bottom dock, one per monitor: media on the left, pinned + running apps in
+// Bottom dock, one per monitor: the artoo prompt on the left, pinned + running apps in
 // the middle, then minimized windows after a divider. Always visible, so it
 // reserves its height like the top bar does.
 PanelWindow {
@@ -32,6 +33,14 @@ PanelWindow {
     color: "transparent"
 
     WlrLayershell.namespace: "quickshell-bar"
+    // Only take the keyboard around the prompt. Hyprland focuses an OnDemand layer when
+    // it's clicked, so the field switches to OnDemand while hovered (before the click
+    // lands) and while editing; clicking any other window then takes focus back, which
+    // JevPrompt sees and stops editing. Super+A has no click, so it grabs Exclusive until
+    // the mouse moves, then drops to OnDemand. Exclusive only that long: it locks out every
+    // other window until Enter or Escape.
+    WlrLayershell.keyboardFocus: jevPrompt.grabbing ? WlrKeyboardFocus.Exclusive
+        : jevPrompt.wantsKeyboard ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     BarSurface {}
 
@@ -49,14 +58,22 @@ PanelWindow {
         anchors.leftMargin: Theme.barPaddingH
         anchors.rightMargin: Theme.barPaddingH
 
-        // ── Left: now playing ────────────────────────────────────────
-        MprisModule {
+        // ── Left: artoo prompt (now playing moved to the top bar) ──
+        JevPrompt {
+            id: jevPrompt
+            monitorName: dock.screen?.name ?? ""
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             height: parent.height
-            bar: dock
-            tooltipAbove: true
-            textColor: Theme.textPrimary
+        }
+
+        // Super+A: focus the prompt on whichever monitor is focused
+        Connections {
+            target: JevFocus
+            function onRequested() {
+                if (dock.screen?.name === Hyprland.focusedMonitor?.name)
+                    jevPrompt.grabAndEdit();
+            }
         }
 
         // ── Right: system stats ──────────────────────────────────

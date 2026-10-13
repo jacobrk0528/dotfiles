@@ -21,6 +21,9 @@ One click on any of:
 - the toolbar icon,
 - `Alt+Shift+C` (change at `chrome://extensions/shortcuts`).
 
+Also: on these sites, `Ctrl+J` in the prompt box inserts a newline (like `Shift+Enter`)
+instead of opening Downloads. See `content/newline-key.js`.
+
 ## Output
 
 ```json

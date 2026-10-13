@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # bc_utils -- flat Python BI scripts (forecasting, order alerts, Slack reports).
-# No claude window: this layout starts at 1 with the editor.
+# uv-managed .venv, which b_venv finds on its own.
 . "$(dirname "$(readlink -f "$0")")/builder_lib.sh"
 
-b_init bcUtils "$HOME/Documents/TrinityRoad/local-git/bc_utils" nvim 1
+b_init bc_utils "$HOME/Documents/TrinityRoad/local-git/bc_utils"
 b_venv
 
+b_cd 0
+b_send 0 "claude"
+
+b_window 1 nvim
 b_cd 1
 b_send 1 "nvim ."
 

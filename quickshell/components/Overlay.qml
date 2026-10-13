@@ -17,6 +17,10 @@ PanelWindow {
     // Where the panel content sits within the scrim.
     property int contentAlign: Qt.AlignCenter
 
+    // Blur the whole screen behind the scrim. When false the scrim only
+    // dims, and Hyprland blurs just behind the panel content.
+    property bool blurBackdrop: true
+
     readonly property bool shown: Panels.open === panelName
 
     readonly property string focusedName: Hyprland.focusedMonitor?.name ?? ""
@@ -35,7 +39,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "quickshell-overlay"
+    WlrLayershell.namespace: root.blurBackdrop ? "quickshell-overlay" : "quickshell-clear-overlay"
     WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // Dimmed backdrop; clicking it dismisses the panel.
@@ -63,7 +67,7 @@ PanelWindow {
         anchors.fill: parent
         focus: root.shown
 
-        Keys.onEscapePressed: Panels.close()
+        Keys.onEscapePressed: Panels.dismiss()
 
         Item {
             id: container
@@ -83,6 +87,10 @@ PanelWindow {
             anchors.top: root.contentAlign & Qt.AlignTop ? parent.top : undefined
             anchors.bottom: root.contentAlign & Qt.AlignBottom ? parent.bottom : undefined
             anchors.margins: Theme.barMargin + Theme.barHeight + Theme.spacingM
+            // Side-aligned panels line up with the bar and tiled window edges
+            // (barMargin matches Hyprland's gaps_out).
+            anchors.leftMargin: Theme.barMargin
+            anchors.rightMargin: Theme.barMargin
 
             implicitWidth: childrenRect.width
             implicitHeight: childrenRect.height

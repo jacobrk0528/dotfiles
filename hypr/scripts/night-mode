@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Night mode controls and scheduled transitions for the Hyprland session."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+from datetime import datetime, timedelta
+
+DEFAULTS = dict(temperature=2500, scheduleEnabled=True, start="18:00", end="08:00")
+STATE = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state"))) / "hypr"
+
+
+def valid_time(value):
+    try:
+        return datetime.strptime(value, "%H:%M").strftime("%H:%M") == value
+    except (ValueError, TypeError):
+        return False
+
+
+def latest_transition(previous, now, start, end):
+    """Return the latest boundary crossed, including across suspend/midnight."""
+    events = []
+    today = datetime.fromtimestamp(now).date()
+    for day in (today - timedelta(days=1), today):
+        for value, enabled in ((start, True), (end, False)):
+            hour, minute = map(int, value.split(":"))
+            stamp = datetime.combine(day, datetime.min.time()).replace(hour=hour, minute=minute).timestamp()
+            if previous < stamp <= now:
+                events.append((stamp, enabled))
+    return max(events)[1] if events else None
+
+
+def ctl(*args):
+    result = subprocess.run(["hyprctl", "hyprsunset", *args], capture_output=True, text=True, timeout=5)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "Cannot reach hyprsunset")
+    return result.stdout.strip()
+
+
+def is_on():
+    try:
+        return ctl("identity", "get") == "false"
+    except RuntimeError:
+        return False
+
+
+def apply(enabled, temperature):
+    if not enabled:
+        if is_on():
+            ctl("identity")
+        return
+    try:
+        ctl("identity", "get")
+    except RuntimeError:
+        subprocess.run(["hyprctl", "dispatch", 'hl.dsp.exec_cmd("hyprsunset --identity")'], check=True, capture_output=True, timeout=5)
+        for _ in range(50):
+            try:
+                ctl("identity", "get")
+                break
+            except RuntimeError:
+                time.sleep(0.1)
+        else:
+            raise RuntimeError("Could not start hyprsunset")
+    ctl("temperature", str(temperature))
+
+
+def save(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(data) + "\n")
+    temporary.replace(path)
+
+
+def main(args):
+    action = args[0] if args else "toggle"
+    session = Path(os.environ["XDG_RUNTIME_DIR"]) / "hypr" / os.environ["HYPRLAND_INSTANCE_SIGNATURE"]
+    session.mkdir(parents=True, exist_ok=True)
+    with (session / "night-mode.lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        settings = DEFAULTS.copy()
+        config = STATE / "night-mode.json"
+        if config.exists():
+            settings.update(json.loads(config.read_text()))
+        else:
+            old = STATE / "night-mode-temperature"
+            if old.exists():
+                settings["temperature"] = int(old.read_text().strip())
+        cursor = session / "night-mode-schedule.json"
+        now = time.time()
+        if action == "get":
+            print(settings["temperature"])
+            return
+        if action == "status":
+            print("on" if is_on() else "off")
+            return
+        if action == "set":
+            temperature = int(args[1])
+            if not 1000 <= temperature <= 6500:
+                raise ValueError("Temperature must be between 1000 and 6500K")
+            if is_on():
+                apply(True, temperature)
+            settings["temperature"] = temperature
+            save(config, settings)
+        elif action == "schedule":
+            if len(args) != 4 or args[1] not in ("on", "off") or not all(valid_time(v) for v in args[2:]) or args[2] == args[3]:
+                raise ValueError("Use schedule on|off HH:MM HH:MM, with different start/end times")
+            settings.update(scheduleEnabled=args[1] == "on", start=args[2], end=args[3])
+            save(config, settings)
+            save(cursor, {"last": now})
+        elif action == "startup":
+            apply(False, settings["temperature"])
+            save(cursor, {"last": now})
+        elif action == "tick":
+            previous = json.loads(cursor.read_text())["last"] if cursor.exists() else now
+            transition = latest_transition(previous, now, settings["start"], settings["end"])
+            if settings["scheduleEnabled"] and transition is not None:
+                apply(transition, settings["temperature"])
+            save(cursor, {"last": now})
+        elif action in ("on", "off", "toggle"):
+            apply(action == "on" or (action == "toggle" and not is_on()), settings["temperature"])
+        elif action != "snapshot":
+            raise ValueError("Use on|off|toggle|get|status|set K|schedule on|off HH:MM HH:MM|startup|tick|snapshot")
+        print(json.dumps(dict(settings, enabled=is_on())))
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except (KeyError, ValueError, RuntimeError, OSError, subprocess.SubprocessError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

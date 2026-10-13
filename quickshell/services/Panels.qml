@@ -2,13 +2,34 @@ pragma Singleton
 import Quickshell
 import QtQuick
 
-// Which full-screen overlay panel is currently open. Only one at a time,
-// so opening any panel implicitly closes the others.
+// One main overlay, with an optional settings pane inside the control center.
 Singleton {
     id: root
 
-    // "" | "launcher" | "control" | "notifications" | "power" | "cheatsheet" | "ai" | "homeassistant" | "dockpicker"
+    // "" | "launcher" | "control" | "notifications" | "power" | "cheatsheet" | "ai" | "homeassistant" | "dockpicker" | "dictation-history" | "jev-history"
     property string open: ""
+    property Component settingsComponent: null
+
+    onOpenChanged: {
+        if (open !== "control")
+            settingsComponent = null;
+    }
+
+    function showSettings(component) {
+        root.open = "control";
+        root.settingsComponent = component;
+    }
+
+    function closeSettings() {
+        root.settingsComponent = null;
+    }
+
+    function dismiss() {
+        if (root.settingsComponent !== null)
+            closeSettings();
+        else
+            close();
+    }
 
     readonly property bool anyOpen: open !== ""
 

@@ -94,8 +94,11 @@ local btop        = "ghostty --title=btop -e bash -c 'btop'"
 
 -- See https://wiki.hypr.land/Configuring/Basics/Autostart/
 hl.on("hyprland.start", function()
+    hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/hypr/scripts/night-mode startup")
     hl.exec_cmd("qs")
     hl.exec_cmd("hypridle")
+    -- Answers polkit password prompts (pkexec, input-remapper, etc).
+    hl.exec_cmd("systemctl --user start hyprpolkitagent")
     -- Re-resolve which connectors the two identical Sceptres are on and place
     -- them. Self-corrects after a driver upgrade renumbers the connectors.
     hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/hypr/scripts/side-monitors --quiet")
@@ -107,6 +110,8 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
 	hl.exec_cmd("wl-paste --type text --watch cliphist store")
 	hl.exec_cmd("wl-paste --type image --watch cliphist store")
+	-- Titles copied images with a local vision model for the clipboard panel.
+	hl.exec_cmd("wl-paste --type image --watch " .. os.getenv("HOME") .. "/dotfiles/quickshell/scripts/clip-label --copied")
 	hl.exec_cmd("wl-clip-persist --clipboard regular")
 end)
 
@@ -182,7 +187,7 @@ hl.config({
         kb_layout  = "us",
         kb_variant = "",
         kb_model   = "",
-        kb_options = "ctrl:nocaps",
+        kb_options = "ctrl:nocaps,altwin:menu_win",
         kb_rules   = "",
 
         follow_mouse = 1,
@@ -239,6 +244,9 @@ hl.layer_rule({ match = { namespace = "quickshell-bar" },           blur = true,
 hl.layer_rule({ match = { namespace = "quickshell-notifications" }, blur = true })
 hl.layer_rule({ match = { namespace = "quickshell-osd" },           blur = true })
 hl.layer_rule({ match = { namespace = "quickshell-overlay" },       blur = true })
+-- Control center + notifications: ignore_alpha sits above the scrim's 0.45
+-- so only the panel itself is blurred, not the dimmed screen behind it.
+hl.layer_rule({ match = { namespace = "quickshell-clear-overlay" }, blur = true, ignore_alpha = 0.5 })
 -- ignore_alpha keeps the blur on the widget panels only, not the
 -- fully transparent space between them.
 hl.layer_rule({ match = { namespace = "quickshell-desktop" },       blur = true, ignore_alpha = 0.2 })
@@ -328,47 +336,67 @@ end
 local mainMod = "SUPER"
 
 -- Screenshots
-hl.bind("Home",             hl.dsp.exec_cmd("/home/jkrebs/dotfiles/scripts/screenshot-region -o /home/jkrebs/Pictures"))
-hl.bind(mainMod .. " + Home", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/scripts/screenshot-region --clipboard-only"))
+hl.bind("Home",             hl.dsp.exec_cmd("/home/jkrebs/dotfiles/scripts/screenshot-region -o /home/jkrebs/Pictures"), { description = "Screenshot a region to ~/Pictures" })
+hl.bind(mainMod .. " + Home", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/scripts/screenshot-region --clipboard-only"), { description = "Screenshot a region to the clipboard" })
 
 -- SUPER+SHIFT+Home, then a workspace key, screenshots that workspace's whole
 -- monitor to the clipboard. Uses the same keys as the workspace/special binds
 -- below so it covers workspaces 1-10 and the special workspaces too.
 local function screenshot_workspace_clipboard(workspace)
-    return function()
+    local function shoot()
         local ws = hl.get_workspace(workspace)
         if not ws or not ws.monitor then
             hl.notification.create({ text = "Workspace '" .. tostring(workspace) .. "' doesn't exist", timeout = 3000 })
-            hl.dispatch(hl.dsp.submap(""))
             return
         end
 
         local monitor_name = ws.monitor.name
+        local hyprshot = "hyprshot -m output -m " .. monitor_name .. " --clipboard-only"
 
         if ws.visible then
-            hl.exec_cmd("hyprshot -m output -m " .. monitor_name .. " --clipboard-only")
-        else
-            -- Workspace isn't currently shown on any monitor. Briefly switch its
-            -- home monitor to it, screenshot, then switch back to what was there.
-            local focused = hl.get_active_monitor()
-            local previous = ws.monitor.active_workspace
-            local restore_ref = previous and (previous.special and previous.name or tostring(previous.id)) or nil
-
-            local cmd = "hyprctl dispatch focusmonitor " .. monitor_name
-                .. " && hyprctl dispatch workspace " .. tostring(workspace)
-                .. " && sleep 0.15"
-                .. " && hyprshot -m output -m " .. monitor_name .. " --clipboard-only"
-            if restore_ref then
-                cmd = cmd .. " && hyprctl dispatch workspace " .. restore_ref
-            end
-            if focused and focused.name ~= monitor_name then
-                cmd = cmd .. " && hyprctl dispatch focusmonitor " .. focused.name
-            end
-
-            hl.exec_cmd(cmd)
+            hl.exec_cmd(hyprshot)
+            return
         end
 
+        -- Workspace isn't currently shown on any monitor. Briefly switch its
+        -- home monitor to it, screenshot, then switch back to what was there.
+        -- The switch back runs from the shell after hyprshot, so it goes through
+        -- `hyprctl dispatch`, which takes Lua dispatcher expressions.
+        local special = type(workspace) == "string" and workspace:match("^special:(.+)$")
+        local focused = hl.get_active_monitor()
+        local previous = ws.monitor.active_workspace
+
+        hl.dispatch(hl.dsp.focus({ monitor = monitor_name }))
+        local restore = {}
+        if special then
+            hl.dispatch(hl.dsp.workspace.toggle_special(special))
+            table.insert(restore, 'hl.dsp.workspace.toggle_special("' .. special .. '")')
+        else
+            hl.dispatch(hl.dsp.focus({ workspace = workspace }))
+            if previous then
+                table.insert(restore, "hl.dsp.focus({ workspace = " .. tostring(previous.id) .. " })")
+            end
+        end
+        if focused and focused.name ~= monitor_name then
+            table.insert(restore, 'hl.dsp.focus({ monitor = "' .. focused.name .. '" })')
+        end
+
+        local cmd = "sleep 0.15; " .. hyprshot
+        for _, d in ipairs(restore) do
+            cmd = cmd .. "; hyprctl dispatch '" .. d .. "'"
+        end
+        hl.exec_cmd(cmd)
+    end
+
+    return function()
+        -- Always leave the submap, even if shoot() errors: a submap left
+        -- active swallows every normal bind (SUPER+SHIFT+Home then just types
+        -- "1;10H" into the terminal).
+        local ok, err = pcall(shoot)
         hl.dispatch(hl.dsp.submap(""))
+        if not ok then
+            hl.notification.create({ text = "Screenshot failed: " .. tostring(err), timeout = 5000 })
+        end
     end
 end
 
@@ -381,20 +409,22 @@ hl.define_submap("screenshot-workspace", function()
     hl.bind("period",    screenshot_workspace_clipboard("special:slack"))
     hl.bind("comma",     screenshot_workspace_clipboard("special:btop"))
     hl.bind("Escape", hl.dsp.submap(""))
+    -- Any other key cancels, rather than leaving the submap stuck on
+    hl.bind("catchall", hl.dsp.submap(""))
 end)
 
-hl.bind(mainMod .. " + SHIFT + Home", hl.dsp.submap("screenshot-workspace"))
+hl.bind(mainMod .. " + SHIFT + Home", hl.dsp.submap("screenshot-workspace"), { description = "Screenshot a whole workspace to the clipboard (then press its key)" })
 
 -- Apps
-hl.bind(mainMod .. " + T",     hl.dsp.exec_cmd(terminal))
+hl.bind(mainMod .. " + T",     hl.dsp.exec_cmd(terminal), { description = "Terminal (Ghostty)" })
 hl.bind(mainMod .. " + Q",     hl.dsp.window.close())
-hl.bind(mainMod .. " + E",         hl.dsp.exec_cmd(fileManager))
-hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(dolphin))
+hl.bind(mainMod .. " + E",         hl.dsp.exec_cmd(fileManager), { description = "File manager (Yazi)" })
+hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(dolphin), { description = "File manager (Dolphin, for sftp:// and smb://)" })
 hl.bind(mainMod .. " + V",     hl.dsp.global("quickshell:clipboard"))
 hl.bind(mainMod .. " + space", hl.dsp.global("quickshell:launcher"))
-hl.bind(mainMod .. " + P",     hl.dsp.exec_cmd("pgadmin4"))
-hl.bind(mainMod .. " + B",     hl.dsp.exec_cmd(browser))
-hl.bind(mainMod .. " + S",     hl.dsp.exec_cmd(slack))
+hl.bind(mainMod .. " + P",     hl.dsp.exec_cmd("pgadmin4"), { description = "pgAdmin" })
+hl.bind(mainMod .. " + B",     hl.dsp.exec_cmd(browser), { description = "Browser (Brave, profile picker)" })
+hl.bind(mainMod .. " + S",     hl.dsp.exec_cmd(slack), { description = "Slack" })
 hl.bind(mainMod .. " + CTRL + Q", hl.dsp.exit())
 
 -- Shell panels (quickshell)
@@ -405,16 +435,17 @@ hl.bind(mainMod .. " + C",         hl.dsp.global("quickshell:control"))
 hl.bind(mainMod .. " + slash",     hl.dsp.global("quickshell:cheatsheet"))
 hl.bind(mainMod .. " + Escape",    hl.dsp.global("quickshell:power"))
 hl.bind(mainMod .. " + W",         hl.dsp.global("quickshell:wallpapers"))
-hl.bind(mainMod .. " + A",         hl.dsp.global("quickshell:ai"))
+hl.bind(mainMod .. " + A",         hl.dsp.global("quickshell:jev"), { description = "artoo prompt (do or ask anything)" })
+hl.bind(mainMod .. " + SHIFT + A", hl.dsp.global("quickshell:jevHistory"), { description = "artoo conversations (inputs, answers, steps, cost)" })
 hl.bind(mainMod .. " + Y",         hl.dsp.global("quickshell:homeassistant"))
 
 
 -- Audio keybinds
 -- Switch to the sink; if it's already the active sink, toggle mute instead.
-hl.bind(mainMod .. " + CTRL + 1", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo")) -- Razer headset
-hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo"))
-hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo")) -- Pebble
-hl.bind(mainMod .. " + CTRL + 5", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh bluez_output.04_C8_B0_2F_27_CD.1")) -- Pixel earbuds
+hl.bind(mainMod .. " + CTRL + 1", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-Razer_Razer_Nari_Essential-00.analog-stereo"), { description = "Audio to Razer headset (again: mute)" }) -- Razer headset
+hl.bind(mainMod .. " + CTRL + 3", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-Generic_USB_Audio_20210726905926-00.analog-stereo"), { description = "Audio to USB audio device (again: mute)" })
+hl.bind(mainMod .. " + CTRL + 4", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo"), { description = "Audio to Pebble speakers (again: mute)" }) -- Pebble
+hl.bind(mainMod .. " + CTRL + 5", hl.dsp.exec_cmd("~/dotfiles/hypr/scripts/sink-select-or-mute.sh bluez_output.04_C8_B0_2F_27_CD.1"), { description = "Audio to Pixel earbuds, connecting first (again: mute)" }) -- Pixel earbuds
 
 
 -- Focus with vim keys
@@ -431,6 +462,15 @@ hl.bind(mainMod .. " + SHIFT + k", function () hl.dsp.window.resize_active({ x =
 
 -- Fullscreen
 hl.bind(mainMod .. " + f", hl.dsp.window.fullscreen(1))
+
+-- Fullscreen "in place": the app thinks it is fullscreen (a browser video hides its page
+-- chrome and fills the window) while Hyprland keeps the window in its tile.
+hl.bind(mainMod .. " + SHIFT + f", function()
+    local w = hl.get_active_window()
+    if not w then return end
+    local on = w.fullscreen_client == 2
+    hl.dispatch(hl.dsp.window.fullscreen_state({ internal = 0, client = on and 0 or 2 }))
+end, { description = "Fullscreen inside the tile (client only)" })
 
 -- Workspaces 1-10
 for i = 1, 10 do
@@ -459,7 +499,7 @@ end
 
 -- Special workspaces
 hl.bind(mainMod .. " + semicolon",        hl.dsp.workspace.toggle_special("logs"))
-hl.bind(mainMod .. " + apostrophe",       hl.dsp.exec_cmd("/home/jkrebs/dotfiles/quickshell/scripts/media-scratchpad"))
+hl.bind(mainMod .. " + apostrophe",       hl.dsp.exec_cmd("/home/jkrebs/dotfiles/quickshell/scripts/media-scratchpad"), { description = "Toggle media scratchpad (YouTube Music)" })
 hl.bind(mainMod .. " + period",           hl.dsp.workspace.toggle_special("slack"))
 hl.bind(mainMod .. " + comma",         hl.dsp.workspace.toggle_special("btop"))
 
@@ -468,36 +508,44 @@ hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 
 -- Lock
-hl.bind(mainMod .. " + End", hl.dsp.exec_cmd("hyprlock"))
+hl.bind(mainMod .. " + End", hl.dsp.exec_cmd("hyprlock"), { description = "Lock screen" })
 
--- Dictation: hold Insert to record, release to transcribe + type
-hl.bind("Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh start"))
-hl.bind("Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh stop"),  { release = true })
+-- Dictation: press Insert to copy the most recent transcription to the clipboard
+hl.bind("Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh copy-last"), { description = "Copy last dictation to clipboard" })
 -- Dictation: press Delete to start recording, press again to transcribe + type
-hl.bind("Delete", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh toggle"))
--- Dictation: hold SUPER+Insert, say a word, release, type its correct spelling to teach it
-hl.bind(mainMod .. " + Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh teach-start"))
-hl.bind(mainMod .. " + Insert", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh stop"), { release = true })
+hl.bind("Delete", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh toggle"), { description = "Dictate: press to start, again to type it" })
+-- Dictation: SUPER+Insert opens the dictation history panel
+hl.bind(mainMod .. " + Insert", hl.dsp.global("quickshell:dictationHistory"), { description = "Dictation history" })
+-- Dictation: hold End, say a word, release, type its correct spelling to teach it
+hl.bind("End", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh teach-start"), { description = "Teach dictation a word (hold, say it, release)" })
+hl.bind("End", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/ptt_dictate.sh stop"), { release = true })
+
+-- Monitors
+hl.bind(mainMod .. " + CTRL + N", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/night-mode toggle"), { description = "Toggle night mode (reduce blue light on all monitors)" })
 
 -- Swap the Left / Right monitor rules (the KVM can swap which of the two
 -- identical Sceptres sits behind the EDID-reporting adapter)
-hl.bind(mainMod .. " + CTRL + M", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/swap-monitors"))
+hl.bind(mainMod .. " + CTRL + M", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/swap-monitors"), { description = "Swap left/right side monitors" })
+
+-- Dwindle split control: flip the focused pair side-by-side <-> stacked, or swap its halves
+hl.bind(mainMod .. " + CTRL + j", hl.dsp.layout("togglesplit"), { description = "Toggle split direction" })
+hl.bind(mainMod .. " + CTRL + k", hl.dsp.layout("swapsplit"),   { description = "Swap split halves" })
 
 -- Mouse move/resize
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 -- Audio
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/volume_change.sh 5 up"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/volume_change.sh 5 down"), { locked = true, repeating = true })
-hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     { locked = true, repeating = true })
-hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   { locked = true, repeating = true })
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/volume_change.sh 5 up"), { locked = true, repeating = true, description = "Volume up" })
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/hypr/scripts/volume_change.sh 5 down"), { locked = true, repeating = true, description = "Volume down" })
+hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     { locked = true, repeating = true, description = "Mute audio" })
+hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   { locked = true, repeating = true, description = "Mute microphone" })
 
-hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
-hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("playerctl next"),       { locked = true })
-hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = true })
-hl.bind("XF86AudioStop",  hl.dsp.exec_cmd("playerctl stop"),       { locked = true })
+hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("playerctl play-pause"), { locked = true, description = "Play / pause" })
+hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("playerctl next"),       { locked = true, description = "Next track" })
+hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = true, description = "Previous track" })
+hl.bind("XF86AudioStop",  hl.dsp.exec_cmd("playerctl stop"),       { locked = true, description = "Stop playback" })
 
 -- Screen brightness
-hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -e set +5%"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e set 5%-"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -e set +5%"), { locked = true, repeating = true, description = "Brightness up" })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e set 5%-"), { locked = true, repeating = true, description = "Brightness down" })

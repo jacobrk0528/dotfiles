@@ -1,0 +1,7 @@
+/* GTK 4.24 speaks ext-background-effect-v1, and once it does Hyprland only
+ * blurs the region the client asks for. Ghostty asks for none, so without
+ * this the window is transparent but unblurred. The radius is ignored: the
+ * compositor uses its own decoration.blur settings. */
+window {
+  backdrop-filter: blur(20px);
+}

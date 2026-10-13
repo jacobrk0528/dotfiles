@@ -25,3 +25,7 @@ output.csv
 *.swp
 *.swo
 .DS_Store
+
+# --- Secrets ---
+# The one env file every dotfiles script pulls from. See .env.example.
+.env

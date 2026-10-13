@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Title the image entries in cliphist with a local vision model, so the
+# clipboard panel can show "Grafana dashboard with CPU graphs" instead of
+# "[[ binary data 1 MiB png 1920x1080 ]]".
+#
+# Labels live in a TSV next to the cliphist db:
+#   <id>\t<sha256>\t<title>\t<copied-at>
+# cliphist ids are never reused, and a re-copied image gets a new id, so the
+# hash lets a duplicate reuse its old title without another model call.
+#
+# Runs from `wl-paste --type image --watch` (stdin is ignored; the entry is
+# read back out of cliphist) and from the clipboard panel when it opens.
+#
+# cliphist keeps no timestamps, so copied-at is only known for an image
+# labelled as it was copied (--copied); anything caught up on later has none.
+#
+#   clip-label            label up to $CLIP_LABEL_MAX newest unlabelled images
+#   clip-label --copied   same, and stamp the newest image with the time now
+#   clip-label --all      label every unlabelled image (first-time backfill)
+set -uo pipefail
+
+MODEL="${CLIP_LABEL_MODEL:-gemma3:4b}"
+OLLAMA="${OLLAMA_HOST:-http://127.0.0.1:11434}"
+MAX="${CLIP_LABEL_MAX:-10}"
+[[ "${1:-}" == "--all" ]] && MAX=100000
+# Taken before waiting on the lock, so a busy labeller doesn't skew it.
+copied_at=""
+[[ "${1:-}" == "--copied" ]] && copied_at=$(date '+%F %T')
+
+LABELS="${XDG_CACHE_HOME:-$HOME/.cache}/cliphist/labels.tsv"
+mkdir -p "$(dirname "$LABELS")"
+touch "$LABELS"
+
+# The watcher hands us the image on stdin; drop it so wl-paste isn't blocked.
+[[ -t 0 ]] || cat >/dev/null
+
+# One labeller at a time. A run that loses the race waits, then picks up
+# whatever the winner didn't get to.
+exec 9>"$LABELS.lock"
+flock 9
+
+# wl-paste fires this alongside `cliphist store`; give that a beat to land.
+sleep 0.3
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+cliphist list >"$tmp/list"
+awk -F'\t' '$2 ~ /^\[\[ binary data/ { print $1 }' "$tmp/list" >"$tmp/images"
+
+# Drop labels whose entry has aged out of cliphist. Rewritten in place (not
+# mv'd) so the panel's file watch stays on the same inode.
+awk -F'\t' 'NR == FNR { live[$1]; next } $1 in live' "$tmp/images" "$LABELS" >"$tmp/pruned"
+cmp -s "$tmp/pruned" "$LABELS" || cat "$tmp/pruned" >"$LABELS"
+
+# The hint is deliberately tiny and optional: told up front that this is a
+# custom Linux shell, a 4b model puts "Linux shell" in every title.
+prompt='Write a short title so this screenshot can be found in a list later. Name the app or website and what is on screen. At most 8 words, no quotes, no trailing period. Reply with the title only.
+
+Hint: a few screenshots show one of this desktop'"'"'s own panels. Only if it clearly matches, use its name: Control Center (volume sliders above Ethernet, Bluetooth, Night mode, Focus tiles), Clipboard history (search box above a list of copied text), Notification center, App launcher, Top bar (small strip of tray icons). Otherwise ignore this hint.'
+
+newest=$(head -n1 "$tmp/images")
+count=0
+while read -r id; do
+    # Only the newest entry is the one this copy just stored.
+    stamp=""
+    [[ "$id" == "$newest" ]] && stamp="$copied_at"
+    grep -q "^$id	" "$LABELS" && continue
+    ((count++ < MAX)) || break
+
+    cliphist decode "$id" >"$tmp/img" 2>/dev/null || continue
+    [[ -s "$tmp/img" ]] || continue
+    sha=$(sha256sum "$tmp/img" | cut -d' ' -f1)
+
+    title=$(awk -F'\t' -v s="$sha" '$2 == s { print $3; exit }' "$LABELS")
+    if [[ -z "$title" ]]; then
+        # Shrunk so a 4K capture doesn't cost seconds of image tokens.
+        magick "$tmp/img[0]" -resize '1280x1280>' "$tmp/small.png" 2>/dev/null || continue
+        title=$(
+            jq -n --arg model "$MODEL" --arg prompt "$prompt" --rawfile img <(base64 -w0 "$tmp/small.png") \
+                '{model: $model, prompt: $prompt, images: [$img], stream: false, keep_alive: "2m",
+                  options: {temperature: 0.2, num_predict: 40}}' |
+                curl -sf -m 120 "$OLLAMA/api/generate" -d @- |
+                jq -r '.response // empty' | tr '\t\n' '  ' |
+                sed -E 's/^[[:space:]"'"'"'*]+//; s/[[:space:]"'"'"'*.]+$//; s/[[:space:]]+/ /g'
+        )
+    fi
+    # Model down or not pulled: leave the entry unlabelled and retry next run.
+    [[ -n "$title" ]] || break
+
+    printf '%s\t%s\t%s\t%s\n' "$id" "$sha" "$title" "$stamp" >>"$LABELS"
+done <"$tmp/images"

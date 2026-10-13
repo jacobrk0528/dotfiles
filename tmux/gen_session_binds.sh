@@ -24,7 +24,9 @@ cat >> "$CHEAT" <<'EOF'
 
   C-a f     fzf session picker
   C-a Tab   last session
-  C-a h / l previous / next session
+  C-a a     harpoon: add session
+  C-a hjkl  harpoon: slot 1-4
+  C-a e     harpoon: edit list
   C-a S     this cheatsheet
 
 Missing sessions are built from ~/.tmux/<builder>.sh on demand.

@@ -11,6 +11,7 @@ Overlay {
 
     panelName: "notifications"
     contentAlign: Qt.AlignTop | Qt.AlignRight
+    blurBackdrop: false
 
     property bool showRules: false
     property bool showHistory: false
@@ -129,7 +130,7 @@ Overlay {
                 color: Theme.separator
             }
 
-            // ── App rules: priority (bypasses DND) / blocked ──────
+            // ── App rules: priority markers / blocked ────────────
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: root.showRules
@@ -143,7 +144,7 @@ Overlay {
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
                         color: Theme.textDim
-                        text: "PRIORITY  ·  bypasses do not disturb"
+                        text: "PRIORITY  ·  focus mode rules still apply"
                     }
 
                     Repeater {

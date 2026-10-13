@@ -66,6 +66,9 @@ MouseArea {
         id: label
         visible: !root.card
         anchors.centerIn: parent
+        // Elide when a layout caps the module narrower than its text
+        width: Math.min(implicitWidth, Math.max(0, root.width - root.horizontalPadding * 2))
+        elide: Text.ElideRight
         font.family: Theme.fontFamily
         font.pixelSize: root.fontSize
         color: root.textColor

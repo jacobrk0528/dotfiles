@@ -1,0 +1,15 @@
+[Unit]
+Description=Desktop input for artoo
+After=graphical-session.target
+PartOf=graphical-session.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/test -w /dev/uinput
+ExecStart=/usr/bin/ydotoold
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

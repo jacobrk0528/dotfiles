@@ -1,0 +1,13 @@
+# Prices used for the cost estimates in conversation logs (artoo history / Super+Shift+A).
+# USD per 1M tokens. Values from third-party pricing pages (2026-10-01), so check them against
+# https://openai.com/api/pricing when it matters; OpenAI has cut Luna/Terra prices before.
+models:
+  gpt-5.6-luna: { input: 1.00, output: 6.00 }
+  gpt-5.6-terra: { input: 2.50, output: 15.00 }
+  gpt-5.6-sol: { input: 5.00, output: 30.00 }
+  # Jev (TypeSafe): price unknown; fill in to include it. Match is on the reported model
+  # name with its version stripped (jev-1.13.0 → jev).
+  jev: { input: 0, output: 0 }
+# USD per hosted tool call.
+tools:
+  web_search: 0.01

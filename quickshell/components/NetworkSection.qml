@@ -9,6 +9,7 @@ ColumnLayout {
     id: root
 
     property bool expanded: false
+    property bool showHeader: true
 
     readonly property var wifiDevice: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
     readonly property var wiredDevice: Networking.devices.values.find(d => d.type === DeviceType.Wired) ?? null
@@ -22,9 +23,11 @@ ColumnLayout {
     }
 
     // Scanning is only worth the radio time while the list is open.
-    onExpandedChanged: {
-        if (root.wifiDevice)
-            root.wifiDevice.scannerEnabled = root.expanded;
+    Binding {
+        target: root.wifiDevice
+        property: "scannerEnabled"
+        value: root.expanded
+        when: root.wifiDevice !== null
     }
 
     spacing: 2
@@ -40,6 +43,7 @@ ColumnLayout {
     }
 
     ExpanderRow {
+        visible: root.showHeader
         glyph: {
             if (root.wiredDevice?.connected)
                 return "󰈀";

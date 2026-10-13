@@ -51,6 +51,16 @@ Since some parts of a system cannot (or should not) be automated, follow this ch
 ---
 
 ## 🏹 Arch Linux Notes
+*   **Night mode**: `SUPER+CTRL+N` toggles a blue-light filter on all monitors
+    (2500K by default). Left-click Night in `SUPER+C` to toggle it; right-click
+    opens settings beside the control center for temperature and the schedule. The schedule is
+    enabled by default: on at 18:00, off at 08:00 (local time). Each login starts
+    off; manual toggles last until the next scheduled change. Settings save
+    automatically; disabling the schedule leaves the current filter state alone.
+    Requires `hyprsunset` (`sudo pacman -S hyprsunset` on an existing
+    install). It starts on demand; normal colors return when toggled off, and
+    each new desktop session starts with the filter off. You can also run
+    `hypr/scripts/night-mode on` or `hypr/scripts/night-mode off`.
 *   Uses `paru` for AUR packages.
 *   Enables Nvidia proprietary drivers and Pipewire audio.
 *   MariaDB is initialized with a passwordless user '$USER'.

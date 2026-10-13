@@ -36,7 +36,9 @@ htop
 hypridle
 hyprland
 hyprlock
+hyprpolkitagent
 hyprshot
+hyprsunset
 jq
 kdeconnect
 kolourpaint

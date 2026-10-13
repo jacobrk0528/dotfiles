@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # Non-interactive wrapper around main.py for scripted use: reads NetSuite
-# credentials from narsil's .env (not passed inline on the command line) and
+# credentials from ~/dotfiles/.env (not passed inline on the command line) and
 # runs a query straight through, no nvim editor step.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="/home/jkrebs/Documents/TrinityRoad/local-git/narsil/.env"
 
-set -a
-# shellcheck source=/dev/null
-source "$ENV_FILE"
-set +a
+# NETSUITE_DSN / NETSUITE_USERNAME / NETSUITE_PASSWORD. dotenv.sh takes values
+# literally, so a password with shell metacharacters survives intact.
+. "$HOME/dotfiles/scripts/dotenv.sh"
+: "${NETSUITE_DSN:?not set in $DOTFILES_ENV}" "${NETSUITE_USERNAME:?not set in $DOTFILES_ENV}" "${NETSUITE_PASSWORD:?not set in $DOTFILES_ENV}"
 
 export NS_DSN="${NETSUITE_DSN}"
 export NS_USER="${NETSUITE_USERNAME}"

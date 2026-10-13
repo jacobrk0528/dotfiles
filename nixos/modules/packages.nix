@@ -49,6 +49,7 @@ in
     slurp
     hypridle
     hyprshot
+    hyprsunset
     hyprlock
     cliphist
     wl-clipboard

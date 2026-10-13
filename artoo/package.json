@@ -1,0 +1,21 @@
+{
+  "name": "artoo",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "artoo": "src/cli.ts"
+  },
+  "scripts": {
+    "act": "bun run src/cli.ts act",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@typesafe-ai/sdk": "^0.6.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}

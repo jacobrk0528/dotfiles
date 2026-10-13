@@ -1,8 +1,8 @@
 # Shared by ha-lights and ha-lights-status. Source, don't execute.
+# HA_URL and HA_TOKEN come from ~/dotfiles/.env.
+. "$HOME/dotfiles/scripts/dotenv.sh"
 HA_URL="${HA_URL:-http://192.168.1.109:8123}"
-TOKEN_FILE="$HOME/.config/homeassistant/token"
-[ -f "$TOKEN_FILE" ] || { echo "ha-lights: no token at $TOKEN_FILE" >&2; exit 1; }
-HA_TOKEN="$(cat "$TOKEN_FILE")"
+[ -n "${HA_TOKEN:-}" ] || { echo "ha-lights: HA_TOKEN not set in $DOTFILES_ENV" >&2; exit 1; }
 
 KITCHEN_ENTITIES='["light.kitchen_island_1","light.kitchen_island_middle","light.kitchen_island_3","light.kitchen_kitchen_1","light.kitchen_kitchen_2"]'
 LIVING_ROOM_ENTITIES='["light.living_room_lamp"]'

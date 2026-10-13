@@ -34,7 +34,7 @@ PanelWindow {
         anchors.leftMargin: Theme.barPaddingH
         anchors.rightMargin: Theme.barPaddingH
 
-        // ── Left pill: workspaces ────────────────────────────────────
+        // ── Left pill: workspaces, now playing ───────────────────────
         Pill {
             anchors.left: parent.left
             height: parent.height
@@ -42,6 +42,13 @@ PanelWindow {
             Workspaces {
                 bar: bar
                 Layout.fillHeight: true
+            }
+
+            MprisModule {
+                bar: bar
+                Layout.fillHeight: true
+                // Long titles would push into the centre clock
+                Layout.maximumWidth: 420
             }
 
             MinimizedIndicator {
@@ -66,23 +73,14 @@ PanelWindow {
             }
         }
 
-        // ── Right pill: network, volume, notifications, tray ─────
+        // ── Right pill: control center, notifications, tray ──────────────
         Pill {
             anchors.right: parent.right
             height: parent.height
 
-            ScriptModule {
+            ControlCenterModule {
                 bar: bar
-                icon: ""
-                script: Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/network_status"
-                interval: 5000
-                Layout.fillHeight: true
-            }
-
-            Separator {}
-
-            AudioModule {
-                bar: bar
+                horizontalPadding: 14
                 Layout.fillHeight: true
             }
 
@@ -90,6 +88,7 @@ PanelWindow {
 
             NotifModule {
                 bar: bar
+                horizontalPadding: 14
                 Layout.fillHeight: true
             }
 

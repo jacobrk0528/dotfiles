@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Extract Hyprland keybinds from hyprland.lua as JSON for the shell cheatsheet.
 
-Groups binds under the `-- Section` comments already present in the config, and
-renders each dispatcher into a human description rather than raw Lua.
+Groups binds under the `-- Section` comments already present in the config.
+Each bind shows its `description` option when it has one, and otherwise a
+description rendered from the dispatcher rather than raw Lua.
+
+Only top-level binds and comments count: anything indented lives inside a
+function (a submap's keys, a loop), whose comments are prose, not headings.
 """
 
 import json
@@ -13,8 +17,26 @@ import sys
 CONFIG = os.path.expanduser("~/dotfiles/hypr/hyprland.lua")
 
 # hl.bind("<key expr>", <action expr>[, opts])
-BIND = re.compile(r'^\s*hl\.bind\(\s*(.+?),\s*(hl\.dsp\..*?|function.*?)\s*(?:,\s*\{.*\})?\s*\)\s*$')
-SECTION = re.compile(r'^\s*--\s*(.+?)\s*$')
+BIND = re.compile(r'^hl\.bind\(\s*(.+?),\s*(hl\.dsp\..*?|function.*?)\s*(?:,\s*(\{.*\}))?\s*\)\s*$')
+SECTION = re.compile(r'^--\s*(.+?)\s*$')
+DESCRIPTION = re.compile(r'\bdesc(?:ription)?\s*=\s*"([^"]*)"')
+RELEASE = re.compile(r'\brelease\s*=\s*true')
+
+# quickshell:<name> global shortcuts, by name
+SHELL = {
+    "launcher": "App launcher",
+    "notifications": "Notification center",
+    "dismissNotifications": "Dismiss all notifications",
+    "control": "Control center",
+    "cheatsheet": "Keybind cheatsheet",
+    "power": "Power menu",
+    "wallpapers": "Wallpaper picker",
+    "ai": "AI quick-ask",
+    "homeassistant": "Home Assistant lights",
+    "clipboard": "Clipboard history",
+    "dictationHistory": "Dictation history",
+    "jevHistory": "artoo conversations",
+}
 LOCAL = re.compile(r"""^\s*local\s+(\w+)\s*=\s*(['"])(.*)\2\s*$""")
 
 # Comment lines that are decoration rather than a section title.
@@ -58,8 +80,9 @@ def describe(action, vars):
     m = re.match(r'hl\.dsp\.global\("[^:]*:(\w+)"\)$', a)
     if m:
         name = m.group(1)
-        pretty = re.sub(r'([a-z])([A-Z])', r'\1 \2', name).lower()
-        return "Shell: " + pretty
+        if name in SHELL:
+            return SHELL[name]
+        return re.sub(r'([a-z])([A-Z])', r'\1 \2', name).capitalize()
 
     m = re.match(r'hl\.dsp\.focus\(\{\s*direction\s*=\s*"(\w+)"', a)
     if m:
@@ -67,7 +90,8 @@ def describe(action, vars):
 
     m = re.match(r'hl\.dsp\.focus\(\{\s*workspace\s*=\s*"?([\w+-]+)"?', a)
     if m:
-        return "Workspace " + m.group(1)
+        ws = m.group(1)
+        return {"e+1": "Next workspace", "e-1": "Previous workspace"}.get(ws, "Workspace " + ws)
 
     m = re.match(r'hl\.dsp\.window\.move\(\{\s*workspace\s*=\s*"?([\w+-]+)"?', a)
     if m:
@@ -75,7 +99,7 @@ def describe(action, vars):
 
     m = re.match(r'hl\.dsp\.workspace\.toggle_special\("(\w+)"\)$', a)
     if m:
-        return "Toggle special: " + m.group(1)
+        return f"Toggle {m.group(1)} scratchpad"
 
     if "window.resize_active" in a:
         m = re.search(r'x\s*=\s*(-?\d+),\s*y\s*=\s*(-?\d+)', a)
@@ -124,7 +148,11 @@ def main():
             key, resolved = resolve(m.group(1), vars)
             if not resolved:
                 continue  # generated in a loop; described by hand below
-            desc = describe(m.group(2), vars)
+            opts = m.group(3) or ""
+            if RELEASE.search(opts):
+                continue  # the key-up half of a hold bind; the press describes it
+            given = DESCRIPTION.search(opts)
+            desc = given.group(1) if given else describe(m.group(2), vars)
             if current is None:
                 current = {"name": "General", "binds": []}
                 sections.append(current)
@@ -152,6 +180,13 @@ def main():
             {"key": "SUPER + scroll", "desc": "Cycle workspaces"},
         ],
     })
+    # Also loop-generated (toggle_monitor_dpms)
+    dpms = {"key": "SUPER + ALT + 1,2,3,7", "desc": "Turn off / on the monitor showing that workspace"}
+    monitors = next((sec for sec in sections if sec["name"] == "Monitors"), None)
+    if monitors:
+        monitors["binds"].append(dpms)
+    else:
+        sections.append({"name": "Monitors", "binds": [dpms]})
 
     # Merge repeated headings (e.g. several "Dictation:" comment blocks).
     merged = []
