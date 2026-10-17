@@ -8,6 +8,21 @@ if ! gpu_query "utilization.gpu"; then
   $GPU_ERROR"
 else
   gpu_util=$(echo "$GPU_ROW" | xargs)
+
+  # utilization.gpu is a single instant and swings 5-60% on a desktop. The
+  # driver keeps a rolling ~14s window of samples, so show its average instead
+  # (and its range in the tooltip). The query above stays as the guard.
+  read -r s_avg s_min s_max s_dur <<< "$(nvidia-smi -q -d UTILIZATION 2>/dev/null | awk -F': ' '
+    /GPU Utilization Samples/ { f = 1; next }
+    f && /Duration/ { d = $2 + 0 }
+    f && /Max/      { mx = $2 + 0 }
+    f && /Min/      { mn = $2 + 0 }
+    f && /Avg/      { print $2 + 0, mn, mx, d; exit }')"
+  range_str=""
+  if [ -n "$s_avg" ]; then
+    gpu_util=$s_avg
+    range_str=$(printf "\n  Last %ss: %s%%–%s%%" "$s_dur" "$s_min" "$s_max")
+  fi
   if [ "$gpu_util" -lt 50 ] 2>/dev/null; then
     util_color="<span color=\"#50fa7b\">${gpu_util}%</span>"
   elif [ "$gpu_util" -lt 85 ] 2>/dev/null; then
@@ -16,7 +31,7 @@ else
     util_color="<span color=\"#ff5555\">${gpu_util}% (CRITICAL)</span>"
   fi
 
-  tooltip=$(printf "GPU Utilization:\n  %b" "$util_color")
+  tooltip=$(printf "GPU Utilization (average):\n  %b%s" "$util_color" "$range_str")
   text="${gpu_util}%"
 fi
 

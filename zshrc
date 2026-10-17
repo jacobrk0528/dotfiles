@@ -23,8 +23,6 @@ export PATH="$PATH:$HOME/.composer/vendor/bin"
 export PATH="$HOME/.luaver/lua/5.1.5/bin:$PATH"
 export PATH="$PATH:$HOME/.rvm/bin"
 
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
 # opencode
 export PATH=$HOME/.opencode/bin:$PATH
 
@@ -105,4 +103,4 @@ export REPORTTIME=30
 
 export PATH="$PATH:$HOME/dotfiles/hypr/scripts"
 
-. "$HOME/.local/share/../bin/env"
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"

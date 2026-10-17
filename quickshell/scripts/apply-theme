@@ -58,22 +58,6 @@ def write(path, content):
     return True
 
 
-def hyprland(t):
-    """Window borders and shadows."""
-    return BANNER + f"""
-general {{
-    col.active_border = {hex_to_rgba(t["accent"], 0.55)}
-    col.inactive_border = {hex_to_rgba(t["text"], 0.10)}
-}}
-
-decoration {{
-    shadow {{
-        color = {hex_to_rgba("#000000", 0.4)}
-    }}
-}}
-"""
-
-
 def hyprlock(t):
     """Colours only; layout stays in hyprlock.conf."""
     return BANNER + f"""
@@ -88,7 +72,7 @@ $err = {hex_to_rgba(t["red"], 0.8)}
 
 
 def hyprland_lua(t):
-    """Same palette for the Lua config, which cannot source a .conf file."""
+    """Window borders and shadows, for hyprland.lua."""
     return BANNER.replace("#", "--") + f"""
 return {{
     active_border   = "{hex_to_rgba(t["accent"], 0.55)}",
@@ -111,17 +95,17 @@ def kdeglobals(t):
     text = rgb(t["text"])
     dim = mix(text, base, 0.45)
 
-    def block(name, bg, fg, extra=""):
+    def block(name, bg, fg, inactive=dim):
         return f"""[Colors:{name}]
 BackgroundNormal={bg}
 BackgroundAlternate={mix(bg, text, 0.04)}
 ForegroundNormal={fg}
-ForegroundInactive={dim}
+ForegroundInactive={inactive}
 ForegroundActive={accent}
 ForegroundLink={accent}
 DecorationFocus={accent}
 DecorationHover={accent}
-{extra}"""
+"""
 
     return BANNER + f"""
 [General]
@@ -147,7 +131,7 @@ Theme=breeze-dark
 {block("Window", base, text)}
 {block("View", mix(base, "0,0,0", 0.25), text)}
 {block("Button", surface, text)}
-{block("Selection", accent, base, f"ForegroundNormal={base}\nForegroundInactive={base}")}
+{block("Selection", accent, base, inactive=base)}
 {block("Tooltip", surface, text)}
 {block("Complementary", base, text)}
 {block("Header", base, text)}
@@ -417,7 +401,6 @@ def main():
         sys.exit(f"cannot read {THEME}: {e}")
 
     targets = [
-        (os.path.join(DOTS, "hypr", "colors.conf"), hyprland(t)),
         (os.path.join(DOTS, "hypr", "colors.lua"), hyprland_lua(t)),
         (os.path.join(DOTS, "hypr", "hyprlock-colors.conf"), hyprlock(t)),
         (os.path.join(DOTS, "ghostty", "colors"), ghostty(t)),

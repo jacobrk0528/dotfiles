@@ -1,3 +1,4 @@
+7zip
 android-sdk-cmdline-tools-latest
 android-studio
 bibata-cursor-theme
@@ -6,6 +7,7 @@ biome
 blueman
 bluez
 bluez-utils
+brave-bin
 btop
 bun
 chromium
@@ -16,6 +18,8 @@ composer
 discord
 dolphin
 exfat-utils
+fd
+ffmpeg
 firefox
 freerdp
 freetds
@@ -39,6 +43,8 @@ hyprlock
 hyprpolkitagent
 hyprshot
 hyprsunset
+imagemagick
+satty
 jq
 kdeconnect
 kolourpaint
@@ -59,8 +65,8 @@ noto-fonts-cjk
 npm
 nvidia-open
 nvidia-utils
-obs-studio
 obsidian
+obs-studio
 openbsd-netcat
 opencode-bin
 otf-font-awesome
@@ -77,6 +83,7 @@ pipewire
 pipewire-alsa
 pipewire-audio
 pipewire-pulse
+poppler
 postgresql
 postman-bin
 python
@@ -90,10 +97,8 @@ rtkit
 slack-desktop
 slurp
 sqlfluff
+syncthing
 tailscale
-thunar
-thunar-archive-plugin
-thunar-volman
 tk
 tmux
 tradingview
@@ -117,10 +122,12 @@ wl-clipboard
 wl-clip-persist
 xdg-desktop-portal-hyprland
 xrdp
+yazi
+ydotool
 zen-browser-bin
 zip
 zoom
+zoxide
 zsh
 zsh-autosuggestions
 zsh-syntax-highlighting
-syncthing

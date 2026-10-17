@@ -1,0 +1,2 @@
+# Hyprland-only environment for uwsm (HYPR* / AQ_* variables).
+export HYPRCURSOR_SIZE=24

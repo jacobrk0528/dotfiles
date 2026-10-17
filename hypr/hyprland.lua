@@ -6,21 +6,9 @@
 ---- ENV VARS ----
 --------------------
 
--- NVIDIA specific
-hl.env("LIBVA_DRIVER_NAME",        "nvidia")
-hl.env("XDG_SESSION_TYPE",         "wayland")
-hl.env("GBM_BACKEND",              "nvidia-drm")
-hl.env("__GLX_VENDOR_LIBRARY_NAME","nvidia")
-
--- Without this, Qt apps (Dolphin) ignore kdeglobals and render with Qt's
--- default light palette; there is no Plasma session here to apply it for them.
-hl.env("QT_QPA_PLATFORMTHEME", "kde")
-
-hl.env("XCURSOR_SIZE",   "24")
-hl.env("HYPRCURSOR_SIZE","24")
-hl.env("TZ",             "America/New_York")
-hl.env("LANG",           "en_US.UTF-8")
-hl.env("LC_ALL",         "en_US.UTF-8")
+-- The session runs under uwsm, so environment variables live in
+-- ~/dotfiles/uwsm/env and uwsm/env-hyprland, where systemd units and portals
+-- see them too (https://wiki.hypr.land/Useful-Utilities/Systemd-start/).
 
 
 --------------------
@@ -43,8 +31,6 @@ hl.monitor({ output = "desc:Acer Technologies XB273 GX 0x15205CF0", mode = "1920
 -- Which one is physically left cannot be detected; SUPER+CTRL+M flips it.
 local side = { LEFT = nil, RIGHT = nil }
 do
-    local f = io.open(os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state"))
-    if f then f:close() end
     local path = (os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state"))
                  .. "/hypr/side-monitors.conf"
     local fh = io.open(path)
@@ -95,10 +81,10 @@ local btop        = "ghostty --title=btop -e bash -c 'btop'"
 -- See https://wiki.hypr.land/Configuring/Basics/Autostart/
 hl.on("hyprland.start", function()
     hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/hypr/scripts/night-mode startup")
-    hl.exec_cmd("qs")
-    hl.exec_cmd("hypridle")
-    -- Answers polkit password prompts (pkexec, input-remapper, etc).
-    hl.exec_cmd("systemctl --user start hyprpolkitagent")
+    -- hypridle and hyprpolkitagent run as enabled systemd user units.
+    -- Long-running helpers go through `uwsm app --` so each gets its own unit
+    -- instead of living inside the compositor's.
+    hl.exec_cmd("uwsm app -- qs")
     -- Re-resolve which connectors the two identical Sceptres are on and place
     -- them. Self-corrects after a driver upgrade renumbers the connectors.
     hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/hypr/scripts/side-monitors --quiet")
@@ -107,12 +93,11 @@ hl.on("hyprland.start", function()
     -- targets the next window to map rather than the process launched, and a
     -- visible special workspace swallows everything opened after it.
     hl.exec_cmd(os.getenv("HOME") .. "/dotfiles/scripts/start-apps.sh")
-    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
-	hl.exec_cmd("wl-paste --type text --watch cliphist store")
-	hl.exec_cmd("wl-paste --type image --watch cliphist store")
+	hl.exec_cmd("uwsm app -- wl-paste --type text --watch cliphist store")
+	hl.exec_cmd("uwsm app -- wl-paste --type image --watch cliphist store")
 	-- Titles copied images with a local vision model for the clipboard panel.
-	hl.exec_cmd("wl-paste --type image --watch " .. os.getenv("HOME") .. "/dotfiles/quickshell/scripts/clip-label --copied")
-	hl.exec_cmd("wl-clip-persist --clipboard regular")
+	hl.exec_cmd("uwsm app -- wl-paste --type image --watch " .. os.getenv("HOME") .. "/dotfiles/quickshell/scripts/clip-label --copied")
+	hl.exec_cmd("uwsm app -- wl-clip-persist --clipboard regular")
 end)
 
 
@@ -122,10 +107,6 @@ end)
 
 -- See https://wiki.hypr.land/Configuring/Basics/Variables/
 hl.config({
-    cursor = {
-        no_hardware_cursors = true,
-    },
-
     general = {
         gaps_in  = 6,
         gaps_out = 12,
@@ -231,8 +212,6 @@ hl.animation({ leaf = "zoomFactor",    enabled = false, speed = 7,    bezier = "
 
 hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 
-hl.device({ name = "epic-mouse-v1", sensitivity = -0.5 })
-
 
 ---------------------------
 ---- LAYER RULES ----
@@ -269,6 +248,12 @@ hl.window_rule({ name = "yazi-float",  match = { class = "com\\.jkrebs\\.yazi" }
 hl.window_rule({ name = "yazi-size",   match = { class = "com\\.jkrebs\\.yazi" }, size   = "1344 756" })
 hl.window_rule({ name = "yazi-center", match = { class = "com\\.jkrebs\\.yazi" }, center = true })
 
+-- satty, opened by scripts/clip-preview (SUPER+CTRL+V) to crop/annotate the
+-- clipboard image.
+hl.window_rule({ name = "satty-float",  match = { class = "com\\.jkrebs\\.satty" }, float  = true })
+hl.window_rule({ name = "satty-size",   match = { class = "com\\.jkrebs\\.satty" }, size   = "1600 900" })
+hl.window_rule({ name = "satty-center", match = { class = "com\\.jkrebs\\.satty" }, center = true })
+
 -- Waydroid, plain or nested in cage-xtmapper (~/.local/bin/waydroid-keymapper,
 -- whose window reports class "wlroots"). Android fixes its resolution to the
 -- window size at session start, so float both at a set size rather than let
@@ -278,12 +263,6 @@ for _, m in ipairs({ { "waydroid", { class = "[Ww]aydroid.*" } }, { "cage-xtmapp
     hl.window_rule({ name = m[1] .. "-size",   match = m[2], size   = "1600 900" })
     hl.window_rule({ name = m[1] .. "-center", match = m[2], center = true })
 end
-
-------------------------------
----- WORKSPACE ASSIGNMENTS ----
-------------------------------
-
--- See https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
 
 ------------------------------
 ---- WORKSPACE ASSIGNMENTS ----
@@ -307,15 +286,6 @@ local workspace_configs = {
 
 		-- Bottom
         { workspace = "7",  monitor = "desc:Acer Technologies PM161Q C 25230110E4HA1" },
-    },
-    desktop = {
-        { workspace = "1",  monitor = "DP-3"    },
-        { workspace = "2",  monitor = "DP-2"    },
-        { workspace = "3",  monitor = "DP-1"    },
-        { workspace = "4",  monitor = "DP-3"    },
-        { workspace = "5",  monitor = "DP-2"    },
-        { workspace = "6",  monitor = "DP-1"    },
-        { workspace = "7",  monitor = "HDMI-A-1"},
     },
 }
 
@@ -421,11 +391,14 @@ hl.bind(mainMod .. " + Q",     hl.dsp.window.close())
 hl.bind(mainMod .. " + E",         hl.dsp.exec_cmd(fileManager), { description = "File manager (Yazi)" })
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(dolphin), { description = "File manager (Dolphin, for sftp:// and smb://)" })
 hl.bind(mainMod .. " + V",     hl.dsp.global("quickshell:clipboard"))
+hl.bind(mainMod .. " + CTRL + V", hl.dsp.exec_cmd("/home/jkrebs/dotfiles/scripts/clip-preview"), { description = "Crop/annotate the image on the clipboard (satty)" })
 hl.bind(mainMod .. " + space", hl.dsp.global("quickshell:launcher"))
 hl.bind(mainMod .. " + P",     hl.dsp.exec_cmd("pgadmin4"), { description = "pgAdmin" })
 hl.bind(mainMod .. " + B",     hl.dsp.exec_cmd(browser), { description = "Browser (Brave, profile picker)" })
 hl.bind(mainMod .. " + S",     hl.dsp.exec_cmd(slack), { description = "Slack" })
-hl.bind(mainMod .. " + CTRL + Q", hl.dsp.exit())
+-- uwsm stop shuts the session down in order; hl.dsp.exit() pulls the
+-- compositor out from under its clients and forces an unclean shutdown.
+hl.bind(mainMod .. " + CTRL + Q", hl.dsp.exec_cmd("uwsm stop"))
 
 -- Shell panels (quickshell)
 hl.bind(mainMod .. " + D",         hl.dsp.global("quickshell:launcher"))
@@ -455,13 +428,13 @@ hl.bind(mainMod .. " + j", hl.dsp.focus({ direction = "up"    }))
 hl.bind(mainMod .. " + k", hl.dsp.focus({ direction = "down"  }))
 
 -- Resize with vim keys
-hl.bind(mainMod .. " + SHIFT + h", function () hl.dsp.window.resize_active({ x = -100, y = 0   }) end)
-hl.bind(mainMod .. " + SHIFT + l", function () hl.dsp.window.resize_active({ x = 100,  y = 0   }) end)
-hl.bind(mainMod .. " + SHIFT + j", function () hl.dsp.window.resize_active({ x = 0,    y = 100 }) end)
-hl.bind(mainMod .. " + SHIFT + k", function () hl.dsp.window.resize_active({ x = 0,    y = -100}) end)
+hl.bind(mainMod .. " + SHIFT + h", hl.dsp.window.resize({ x = -100, y = 0,    relative = true }))
+hl.bind(mainMod .. " + SHIFT + l", hl.dsp.window.resize({ x = 100,  y = 0,    relative = true }))
+hl.bind(mainMod .. " + SHIFT + j", hl.dsp.window.resize({ x = 0,    y = 100,  relative = true }))
+hl.bind(mainMod .. " + SHIFT + k", hl.dsp.window.resize({ x = 0,    y = -100, relative = true }))
 
--- Fullscreen
-hl.bind(mainMod .. " + f", hl.dsp.window.fullscreen(1))
+-- Maximize (fills the work area, keeps gaps and the bar)
+hl.bind(mainMod .. " + f", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
 
 -- Fullscreen "in place": the app thinks it is fullscreen (a browser video hides its page
 -- chrome and fills the window) while Hyprland keeps the window in its tile.
@@ -489,7 +462,12 @@ local function toggle_monitor_dpms(workspace)
             return
         end
 
-        hl.dispatch(hl.dsp.dpms({ mode = "toggle", monitor = ws.monitor.name }))
+        -- Deferred: the wiki warns dispatching DPMS straight from a bind is
+        -- undefined behaviour.
+        local name = ws.monitor.name
+        hl.timer(function()
+            hl.dispatch(hl.dsp.dpms({ action = "toggle", monitor = name }))
+        end, { timeout = 500, type = "oneshot" })
     end
 end
 

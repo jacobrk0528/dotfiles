@@ -36,7 +36,8 @@ fi
 
 install -d -m 755 "$ETC"
 install -m 644 "$DOTFILES/greetd/config.toml"   "$ETC/config.toml"
-install -m 644 "$DOTFILES/greetd/hyprland.conf" "$ETC/hyprland.conf"
+install -m 644 "$DOTFILES/greetd/hyprland.lua"  "$ETC/hyprland.lua"
+rm -f "$ETC/hyprland.conf"
 install -m 755 "$DOTFILES/greetd/greeter-session" "$ETC/greeter-session"
 
 rm -rf "$GREETER"

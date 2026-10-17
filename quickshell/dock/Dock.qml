@@ -101,10 +101,32 @@ PanelWindow {
             ScriptModule {
                 bar: dock
                 tooltipAbove: true
+                icon: "󰔏"
+                script: Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/cpu_temp"
+                title: "CPU temp"
+                thresholds: [70, 85]
+                interval: 5000
+                Layout.fillHeight: true
+            }
+
+            ScriptModule {
+                bar: dock
+                tooltipAbove: true
                 icon: "󰍛"
                 script: Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/mem_status.sh"
                 title: "Mem"
                 thresholds: [60, 85]
+                interval: 5000
+                Layout.fillHeight: true
+            }
+
+            ScriptModule {
+                bar: dock
+                tooltipAbove: true
+                icon: "󰔏"
+                script: Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/ram_temp"
+                title: "Mem temp"
+                thresholds: [55, 70]
                 interval: 5000
                 Layout.fillHeight: true
             }
@@ -124,17 +146,6 @@ PanelWindow {
                 bar: dock
                 tooltipAbove: true
                 icon: "󰔏"
-                script: Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/cpu_temp"
-                title: "CPU temp"
-                thresholds: [70, 85]
-                interval: 5000
-                Layout.fillHeight: true
-            }
-
-            ScriptModule {
-                bar: dock
-                tooltipAbove: true
-                icon: "󰢮"
                 script: Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/gpu_temp"
                 title: "GPU temp"
                 thresholds: [70, 83]
@@ -149,6 +160,17 @@ PanelWindow {
                 script: Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/disk_status"
                 title: "Disk"
                 thresholds: [75, 90]
+                interval: 10000
+                Layout.fillHeight: true
+            }
+
+            ScriptModule {
+                bar: dock
+                tooltipAbove: true
+                icon: "󰔏"
+                script: Quickshell.env("HOME") + "/dotfiles/quickshell/scripts/disk_temp"
+                title: "Disk temp"
+                thresholds: [60, 70]
                 interval: 10000
                 Layout.fillHeight: true
             }

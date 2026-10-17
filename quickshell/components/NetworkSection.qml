@@ -150,7 +150,7 @@ ColumnLayout {
                     }
 
                     Text {
-                        visible: netRow.modelData.security !== WifiSecurityType.None
+                        visible: netRow.modelData.security !== WifiSecurityType.Open
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 2
                         color: Theme.textDim

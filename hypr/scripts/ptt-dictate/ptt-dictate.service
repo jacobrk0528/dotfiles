@@ -1,5 +1,6 @@
 [Unit]
 Description=Push-to-talk dictation daemon
+PartOf=graphical-session.target
 After=graphical-session.target
 # Keep retrying rather than latching into 'failed' and leaving the user
 # with silently dead dictation until they notice and restart by hand.
@@ -16,7 +17,7 @@ Type=notify
 NotifyAccess=main
 WatchdogSec=60
 EnvironmentFile=-%h/dotfiles/.env
-ExecStart=/home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/venv/bin/python /home/jkrebs/dotfiles/hypr/scripts/ptt-dictate/daemon.py
+ExecStart=%h/dotfiles/hypr/scripts/ptt-dictate/venv/bin/python %h/dotfiles/hypr/scripts/ptt-dictate/daemon.py
 Restart=always
 RestartSec=5
 

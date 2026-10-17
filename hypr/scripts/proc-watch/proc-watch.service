@@ -1,5 +1,6 @@
 [Unit]
 Description=Notify on runaway processes (CPU, memory, GPU, disk, temperatures)
+PartOf=graphical-session.target
 After=graphical-session.target
 StartLimitIntervalSec=120
 StartLimitBurst=10

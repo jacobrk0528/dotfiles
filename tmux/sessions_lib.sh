@@ -37,7 +37,9 @@ resolve_name() {
       return 0
     fi
   done < <(sessions_each)
-  printf '%s\n' "$1"
+  # tmux rewrites '.' and ':' in session names to '_' (so `ta foo.py` would
+  # create foo_py); match that up front or the attach afterwards misses it.
+  printf '%s\n' "$1" | tr '.:' '__'
 }
 
 # session_exists <name>  (exact match; session names are case sensitive)
@@ -56,8 +58,12 @@ ensure_session() {
   local name=$1 builder
   session_exists "$name" && return 0
   builder=$(builder_for "$name")
-  if [ -n "$builder" ] && [ -x "$builder" ]; then
-    "$builder" </dev/null 2>/dev/null || true
+  # Unlisted names get the generic claude/nvim/shell layout in the caller's cwd.
+  # stdout goes to /dev/null too, so b_finish never attaches from in here; the
+  # caller (load_or_create.sh / goto.sh) does that once the session exists.
+  [ -n "$builder" ] || builder="$TMUX_DIR/default.sh"
+  if [ -x "$builder" ]; then
+    "$builder" "$name" "$PWD" </dev/null >/dev/null 2>&1 || true
   else
     tmux new-session -d -s "$name" -n "$name" </dev/null
   fi

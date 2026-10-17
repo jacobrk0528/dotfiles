@@ -142,7 +142,7 @@ launch_to "2" '^com\.jkrebs\.term$' "" ghostty --class=com.jkrebs.term &
 # in flight at once could not be told apart.
 (
     launch_to "3" '^brave-browser$' "" bash -c \
-        'systemd-run --user --scope --collect -p MemoryHigh=8G -p MemoryMax=24G -- brave --profile-directory=Default --new-window "chrome://newtab" --js-flags="--max-old-space-size=4096"'
+        'systemd-run --user --scope --collect -p MemoryHigh=20G -p MemoryMax=24G -- brave --profile-directory=Default --new-window "chrome://newtab" --js-flags="--max-old-space-size=4096"'
     launch_to "1" '^brave-browser$' "" \
         brave --profile-directory=Default --new-window "chrome://newtab"
     # "Personal" profile. launch_all_to because this profile restores a

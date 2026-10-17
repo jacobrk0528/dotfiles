@@ -12,10 +12,10 @@ window-padding-y = 6
 
 # Hyprland blurs whatever shows through, so the desktop behind stays legible
 # rather than turning into noise under the text. On macOS there's no
-# compositor doing that for us, so background-blur-radius asks Ghostty to
-# blur it itself (macOS-only key; harmless no-op on Linux).
+# compositor doing that for us, so background-blur asks Ghostty to blur it
+# itself (works on macOS and KDE; a no-op under Hyprland).
 background-opacity = 0.75
-background-blur-radius = 20
+background-blur = 20
 # Linux: GTK 4.24+ has to request the blur region itself, see gtk.css.
 gtk-custom-css = gtk.css
 

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sqlfluff-plugin-trinityroad"
 version = "0.1.0"
 description = "Custom SQLFluff rules for jkrebs's house SQL style"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = ["sqlfluff"]
 
 [project.entry-points.sqlfluff]

@@ -11,7 +11,7 @@ git_branch_info() {
   branch=$(git symbolic-ref --short HEAD 2>/dev/null) || return
   dirty=$(git status --porcelain 2>/dev/null)
   if [[ -n "$dirty" ]]; then
-    echo " ${RED}($branch)${RED}"
+    echo " ${RED}($branch)${RESET}"
   else
     echo " ${GREEN}($branch)${RESET}"
   fi

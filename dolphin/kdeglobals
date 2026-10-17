@@ -54,13 +54,12 @@ DecorationHover=138,183,230
 BackgroundNormal=138,183,230
 BackgroundAlternate=142,185,230
 ForegroundNormal=12,18,24
-ForegroundInactive=136,139,144
+ForegroundInactive=12,18,24
 ForegroundActive=138,183,230
 ForegroundLink=138,183,230
 DecorationFocus=138,183,230
 DecorationHover=138,183,230
-ForegroundNormal=12,18,24
-ForegroundInactive=12,18,24
+
 [Colors:Tooltip]
 BackgroundNormal=20,30,41
 BackgroundAlternate=29,38,49

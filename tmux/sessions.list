@@ -1,7 +1,7 @@
 # Single source of truth for predefined tmux sessions.
 #
 # Consumed by:
-#   scripts/start_tmux_sessions.sh   - what to create at login
+#   scripts/start_tmux_sessions.sh   - what to create at login (currently nothing)
 #   tmux/gen_session_binds.sh        - prefix <key> jump binds (sourced by tmux.conf)
 #   tmux/goto.sh                     - resolves a session to its builder script
 #
@@ -18,11 +18,12 @@
 #   t -> tom (first come), so trUtils takes 'u' (Utils) and narsil-main 'm'.
 #
 # key  session      builder      autostart
-c      celebrimbor  celebrimbor  yes
-t      tom          tom          yes
-u      trUtils      trutils      yes
-n      narsil       narsil       yes
-m      narsil-main  narsil-main  yes
-v      event        event        yes
-d      dotfiles     dotfiles     yes
-b      bc_utils     bc_utils     yes
+c      celebrimbor  celebrimbor  no
+t      tom          tom          no
+u      trUtils      trutils      no
+n      narsil       narsil       no
+m      narsil-main  narsil-main  no
+v      event        event        no
+d      dotfiles     dotfiles     no
+b      bc_utils     bc_utils     no
+g      agents       agents       no

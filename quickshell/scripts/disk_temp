@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# NVMe temperatures from the nvme hwmon sensors (one per drive).
+# The card shows the hottest drive; the tooltip lists each one.
+
+max_val=""
+drive_lines=""
+
+for h in /sys/class/hwmon/hwmon*; do
+  [ "$(cat "$h/name" 2>/dev/null)" = "nvme" ] || continue
+  raw=$(cat "$h/temp1_input" 2>/dev/null) || continue
+  c_val=$(awk "BEGIN {printf \"%.1f\", $raw/1000}")
+  device=$(basename "$(readlink -f "$h/device")")
+  model=$(sed 's/ *$//' "$h/device/model" 2>/dev/null)
+  root=""
+  findmnt -no SOURCE / | grep -q "^/dev/${device}n" && root=" (root)"
+  drive_lines="${drive_lines}\n  ${device}${root}: ${c_val}°C  ${model}"
+  if [ -z "$max_val" ] || awk "BEGIN {exit !($c_val > $max_val)}"; then
+    max_val="$c_val"
+  fi
+done
+
+if [ -z "$max_val" ]; then
+  jq -c -n '{text: "N/A", tooltip: "No NVMe temperature sensors found"}'
+  exit 0
+fi
+
+max_int=${max_val%.*}
+
+# Same bands as disk_status; NVMe drives start throttling around 80°C
+if [ "$max_int" -lt 60 ]; then
+  temp_color="<span color=\"#50fa7b\">${max_val}°C</span>"
+elif [ "$max_int" -lt 70 ]; then
+  temp_color="<span color=\"#f1fa8c\">${max_val}°C (Warm)</span>"
+else
+  temp_color="<span color=\"#ff5555\">${max_val}°C (HOT)</span>"
+fi
+
+tooltip=$(printf "Drive Temperatures\n\n  Hottest: %b\n%b" "$temp_color" "$drive_lines")
+text="$(awk "BEGIN {printf \"%.0f\", $max_val}")°C"
+
+jq -c -n --arg text "$text" --arg tooltip "$tooltip" '{text: $text, tooltip: $tooltip}'

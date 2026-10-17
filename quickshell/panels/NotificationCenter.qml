@@ -90,7 +90,7 @@ Overlay {
                 IconButton {
                     glyph: Notifs.doNotDisturb ? "󰂛" : "󰂚"
                     glyphColor: Notifs.doNotDisturb ? Theme.orange : Theme.textSecondary
-                    onClicked: Notifs.doNotDisturb = !Notifs.doNotDisturb
+                    onClicked: Notifs.toggleFocus()
                 }
 
                 IconButton {

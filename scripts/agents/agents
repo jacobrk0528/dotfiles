@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# agents: a hub for every Claude Code session running in tmux.
+#
+#   agents            open the hub (switches to it inside tmux, attaches outside)
+#   agents --sidebar  the hub's left pane: the OpenTUI agent list
+#   agents --viewer   the hub's right pane: a nested tmux client on agents-view
+#   agents --pick     popup (hub Alt+n): pick a session to start a new Claude in
+#
+# The hub session itself is built by ~/.tmux/agents.sh (sessions.list key g).
+set -euo pipefail
+DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+VIEW=agents-view
+
+# agents-view holds a placeholder window plus the one agent window being shown.
+# It must never run out of windows, or tmux destroys the session.
+ensure_view() {
+  tmux has-session -t "=$VIEW" 2>/dev/null && return 0
+  local id
+  id=$(tmux new-session -d -s "$VIEW" -n '·' -P -F '#{window_id}' \
+    "printf '\n  pick an agent on the left\n'; exec sleep infinity")
+  tmux set -t "=$VIEW:" @placeholder "$id"
+  tmux set -t "=$VIEW:" prefix None     # C-a C-a from the hub reaches Claude
+  tmux set -t "=$VIEW:" status off      # the hub already has a status bar
+  tmux set -w -t "$id" automatic-rename off
+}
+
+case ${1:-} in
+  --sidebar)
+    command -v bun >/dev/null 2>&1 || { echo "agents: bun is required (https://bun.sh)" >&2; exit 1; }
+    [ -d "$DIR/node_modules" ] || (cd "$DIR" && bun install --silent)
+    exec bun run "$DIR/src/index.tsx"
+    ;;
+  --viewer)
+    # Reattach if the nested client is ever detached or the view session dies.
+    while :; do
+      ensure_view
+      TMUX='' tmux attach -t "=$VIEW" || sleep 1
+    done
+    ;;
+  --pick)
+    # The sidebar does the starting: hand it the session, then poke it (N).
+    s=$(tmux list-sessions -F '#S' | grep -vx -e agents -e "$VIEW" | fzf --reverse --header 'New Claude in') || exit 0
+    tmux set -t '=agents:' @agents_new "$s"
+    tmux send-keys -t '=agents:0.0' N
+    ;;
+  '')
+    exec "$HOME/.tmux/goto.sh" agents
+    ;;
+  *)
+    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' >&2
+    exit 1
+    ;;
+esac

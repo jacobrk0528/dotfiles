@@ -12,6 +12,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import time
 
 STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "quickshell_sysinfo.state")
 
@@ -73,8 +74,16 @@ def cpu_temp():
                 continue
             label = open(f"{base}/{entry}").read().strip()
             if label in ("Tctl", "Package id 0"):
-                raw = open(f"{base}/{entry[:-6]}_input").read().strip()
-                return round(int(raw) / 1000, 1)
+                # Tctl jumps 10-15°C within milliseconds as cores boost, so
+                # average 10 reads over a second instead of taking one spike
+                path = f"{base}/{entry[:-6]}_input"
+                reads = []
+                for i in range(10):
+                    if i:
+                        time.sleep(0.1)
+                    with open(path) as f:
+                        reads.append(int(f.read()))
+                return round(sum(reads) / len(reads) / 1000, 1)
     return None
 
 
@@ -118,12 +127,25 @@ def gpu():
     return {
         "name": parts[0],
         "temp": num(parts[1]),
-        "util": num(parts[2]),
+        "util": gpu_util_avg(num(parts[2])),
         "vramUsed": round(vram_used / 1024, 1),
         "vramTotal": round(vram_total / 1024, 1),
         "vramPct": round(100 * vram_used / vram_total, 1) if vram_total else 0,
         "power": num(parts[5]),
     }
+
+
+def gpu_util_avg(fallback):
+    """The driver's rolling ~14s average; utilization.gpu is one instant."""
+    try:
+        out = subprocess.run(
+            ["nvidia-smi", "-q", "-d", "UTILIZATION"],
+            capture_output=True, text=True, timeout=3,
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return fallback
+    m = re.search(r"GPU Utilization Samples.*?Avg\s*:\s*(\d+)", out, re.S)
+    return float(m.group(1)) if m else fallback
 
 
 def uptime():

@@ -21,4 +21,6 @@ vim.g.maplocalleader = "\\"
 require("lazy").setup("plugins", {
   checker = { enabled = true },
   defaults = { lazy = false },
+  -- No plugin here needs luarocks; skip the hererocks setup and its health errors.
+  rocks = { enabled = false },
 })

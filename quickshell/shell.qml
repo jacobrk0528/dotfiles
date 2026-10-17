@@ -48,6 +48,8 @@ ShellRoot {
 
     NowPlayingOsd {}
 
+    Freeze {}
+
 
     // Panels
     NotificationCenter {}

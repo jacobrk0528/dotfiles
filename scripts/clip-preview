@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Open the image on the clipboard in satty to crop/annotate it (SUPER+CTRL+V).
+#   Enter   copy the result back to the clipboard and close
+#   Ctrl+S  save it to ~/Pictures (window stays open)
+#   Escape  close without copying
+# Pressing the bind again while satty is open focuses it rather than opening a
+# second one (or closing it and losing the edits).
+set -euo pipefail
+
+app_id="com.jkrebs.satty"
+
+if hyprctl clients -j | jq -e --arg c "$app_id" 'any(.[]; .class == $c)' >/dev/null; then
+    hyprctl dispatch focuswindow "class:^${app_id//./\\.}\$" >/dev/null
+    exit 0
+fi
+
+if ! wl-paste --list-types 2>/dev/null | grep -q '^image/'; then
+    notify-send "Clipboard preview" "No image on the clipboard" -a clip-preview
+    exit 0
+fi
+
+wl-paste --type image/png 2>/dev/null | exec satty \
+    --filename - \
+    --app-id "$app_id" \
+    --copy-command wl-copy \
+    --output-filename "~/Pictures/%Y-%m-%d-%H%M%S_satty.png" \
+    --early-exit copy \
+    --actions-on-enter save-to-clipboard \
+    --actions-on-escape exit \
+    --initial-tool crop

@@ -72,10 +72,12 @@ b_window() {
 # The `cd` every window opens with. Prepends the venv activation when the
 # project has one, so builders never spell out a venv path themselves.
 b_cd() {
+  local qdir
+  qdir=$(printf '%q' "$DIR")    # default.sh runs in arbitrary dirs, spaces included
   if [ -n "${VENV_ACTIVATE:-}" ]; then
-    b_send "$1" "cd $DIR && $VENV_ACTIVATE && clear"
+    b_send "$1" "cd $qdir && $VENV_ACTIVATE && clear"
   else
-    b_send "$1" "cd $DIR && clear"
+    b_send "$1" "cd $qdir && clear"
   fi
 }
 

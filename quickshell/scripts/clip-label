@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Title the image entries in cliphist with a local vision model, so the
+# Title the image entries in cliphist with a cheap Gemini vision model, so the
 # clipboard panel can show "Grafana dashboard with CPU graphs" instead of
 # "[[ binary data 1 MiB png 1920x1080 ]]".
 #
@@ -19,8 +19,11 @@
 #   clip-label --all      label every unlabelled image (first-time backfill)
 set -uo pipefail
 
-MODEL="${CLIP_LABEL_MODEL:-gemma3:4b}"
-OLLAMA="${OLLAMA_HOST:-http://127.0.0.1:11434}"
+# Was a local gemma3:4b on Ollama, which pinned the CPU for ~30s per image.
+# flash-lite is ~2s and ~1k tokens a screenshot. Key: GEMINI_API_KEY in .env.
+. "$HOME/dotfiles/scripts/dotenv.sh"
+MODEL="${CLIP_LABEL_MODEL:-gemini-3.5-flash-lite}"
+API="https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent"
 MAX="${CLIP_LABEL_MAX:-10}"
 [[ "${1:-}" == "--all" ]] && MAX=100000
 # Taken before waiting on the lock, so a busy labeller doesn't skew it.
@@ -77,15 +80,15 @@ while read -r id; do
         # Shrunk so a 4K capture doesn't cost seconds of image tokens.
         magick "$tmp/img[0]" -resize '1280x1280>' "$tmp/small.png" 2>/dev/null || continue
         title=$(
-            jq -n --arg model "$MODEL" --arg prompt "$prompt" --rawfile img <(base64 -w0 "$tmp/small.png") \
-                '{model: $model, prompt: $prompt, images: [$img], stream: false, keep_alive: "2m",
-                  options: {temperature: 0.2, num_predict: 40}}' |
-                curl -sf -m 120 "$OLLAMA/api/generate" -d @- |
-                jq -r '.response // empty' | tr '\t\n' '  ' |
+            jq -n --arg prompt "$prompt" --rawfile img <(base64 -w0 "$tmp/small.png") \
+                '{contents: [{parts: [{text: $prompt}, {inline_data: {mime_type: "image/png", data: $img}}]}],
+                  generationConfig: {temperature: 0.2, maxOutputTokens: 40}}' |
+                curl -sf -m 30 -H "x-goog-api-key: ${GEMINI_API_KEY:-}" -H 'Content-Type: application/json' "$API" -d @- |
+                jq -r '[.candidates[0].content.parts[]? | select(.thought | not) | .text // empty] | join("")' | tr '\t\n' '  ' |
                 sed -E 's/^[[:space:]"'"'"'*]+//; s/[[:space:]"'"'"'*.]+$//; s/[[:space:]]+/ /g'
         )
     fi
-    # Model down or not pulled: leave the entry unlabelled and retry next run.
+    # API down, no key or quota hit: leave the entry unlabelled and retry next run.
     [[ -n "$title" ]] || break
 
     printf '%s\t%s\t%s\t%s\n' "$id" "$sha" "$title" "$stamp" >>"$LABELS"

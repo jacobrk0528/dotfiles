@@ -40,7 +40,7 @@ Clicking workspaces dispatches straight to the `hl.dsp.focus()` Lua dispatchers,
 `hypr_ipc_proxy.py` translation layer is gone.
 
 **Dock** — a macOS-style bar along the bottom of every monitor, always visible (it reserves
-its height the way the top bar does). Now playing sits on the left and system stats (CPU, memory, GPU util/temp, CPU temp, disk) on
+its height the way the top bar does). Now playing sits on the left and system stats (usage and temperature for CPU, memory, GPU and disk) on
 the right; the middle holds pinned apps,
 then any other running app, then — after a divider — every window parked on `special:minimized`.
 Running apps are grouped by window class and matched to a desktop entry
@@ -113,8 +113,8 @@ prefix → name substring → keywords. Arrows to move, Enter to launch.
 
 **Clipboard** (`SUPER+V`) — searchable `cliphist` history; Enter copies, Del or middle-click
 removes an entry. Replaced the `cliphist | wofi` pipeline. Copied images are titled by a
-local vision model (`scripts/clip-label`, Ollama `gemma3:4b`; override with
-`CLIP_LABEL_MODEL`) so screenshots are listed and searchable by what they show instead of
+cheap Gemini vision model (`scripts/clip-label`, `gemini-3.5-flash-lite` via
+`GEMINI_API_KEY` in `.env`; override with `CLIP_LABEL_MODEL`) so screenshots are listed and searchable by what they show instead of
 `[[ binary data … ]]`. Titles are cached in `~/.cache/cliphist/labels.tsv`;
 `clip-label --all` backfills old entries.
 
@@ -183,7 +183,7 @@ to the same colour world as the shell. Pass style names to rebuild a subset, or
 ## Scripts
 
 `sysinfo` and `keybinds` back the desktop widgets and cheatsheet. The remaining scripts
-(`cpu_temp`, `gpu_temp`, `gpu_util`, `disk_status`, `mem_status.sh`, `network_status`,
+(`cpu_temp`, `gpu_temp`, `ram_temp`, `disk_temp`, `gpu_util`, `disk_status`, `mem_status.sh`, `network_status`,
 `mpris_status`) are the original waybar-era collectors, still used by bar modules for their
 rich tooltips.
 

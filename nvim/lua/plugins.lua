@@ -1,44 +1,67 @@
+-- Reads one key from ~/dotfiles/.env (the single secrets file; see
+-- scripts/dotenv.sh). Literal values, one pair of surrounding quotes stripped.
+local function dotenv(key)
+  local f = io.open(vim.fn.expand("~/dotfiles/.env"))
+  if not f then return nil end
+  for line in f:lines() do
+    local k, v = line:match("^%s*export%s+([%w_]+)=(.*)$")
+    if not k then k, v = line:match("^%s*([%w_]+)=(.*)$") end
+    if k == key then
+      f:close()
+      return (v:gsub("%s+$", ""):gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1"))
+    end
+  end
+  f:close()
+end
+
 return {
   { "rose-pine/neovim", name = "rose-pine" },
   { "catppuccin/nvim", name = "catppuccin", priority = 1000 },
 
   {
+    -- `main` branch API: setup() only takes install_dir, so parsers are
+    -- installed explicitly and highlighting/indent are started per buffer.
     "nvim-treesitter/nvim-treesitter",
+    branch = "main",
+    lazy = false,
     build = ":TSUpdate",
-    dependencies = { "nvim-treesitter/nvim-treesitter-textobjects" },
     config = function()
-      local ts = require("nvim-treesitter")
-      ts.setup({
-        ensure_installed = {
-          "c", "lua", "vim", "vimdoc", "query",
-          "markdown", "markdown_inline",
-          "javascript", "typescript", "tsx", "python",
-          "html", "go", "php", "php_only", "json", "css",
-          "regex", "bash", "yaml", "toml", "blade",
-          "sql", "dockerfile", "dart", "rust",
-        },
-        indent = { enable = true },
-        highlight = { enable = true },
-        textobjects = {
-          select = {
-            enable = true,
-            lookahead = true,
-            keymaps = {
-              ["af"] = "@function.outer",
-              ["if"] = "@function.inner",
-              ["ac"] = "@class.outer",
-              ["ic"] = "@class.inner",
-            },
-          },
-        },
+      require("nvim-treesitter").install({
+        "c", "lua", "vim", "vimdoc", "query",
+        "markdown", "markdown_inline",
+        "javascript", "typescript", "tsx", "python",
+        "html", "go", "php", "php_only", "json", "css",
+        "regex", "bash", "yaml", "toml", "blade",
+        "sql", "dockerfile", "dart", "rust",
       })
 
       vim.api.nvim_create_autocmd("FileType", {
-        pattern = { "php", "php_only" },
-        callback = function()
-          vim.b.indentexpr = "nvim_treesitter#indentexpr()"
+        callback = function(args)
+          -- pcall: filetypes without an installed parser keep regex syntax.
+          if pcall(vim.treesitter.start, args.buf) then
+            vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end
         end,
       })
+    end,
+  },
+
+  {
+    "nvim-treesitter/nvim-treesitter-textobjects",
+    branch = "main",
+    config = function()
+      require("nvim-treesitter-textobjects").setup({ select = { lookahead = true } })
+      local select = require("nvim-treesitter-textobjects.select")
+      for keys, capture in pairs({
+        af = "@function.outer",
+        ["if"] = "@function.inner",
+        ac = "@class.outer",
+        ic = "@class.inner",
+      }) do
+        vim.keymap.set({ "x", "o" }, keys, function()
+          select.select_textobject(capture, "textobjects")
+        end)
+      end
     end,
   },
 
@@ -46,11 +69,10 @@ return {
 
   { "ThePrimeagen/harpoon" },
   { "mbbill/undotree" },
-  { "numToStr/Comment.nvim" },
-  { "windwp/nvim-ts-autotag" },
+  { "windwp/nvim-ts-autotag", opts = {} },
 
   {
-    "williamboman/mason.nvim",
+    "mason-org/mason.nvim",
     cmd = "Mason",
     config = function()
       require("mason").setup()
@@ -59,10 +81,9 @@ return {
 
   {
     "neovim/nvim-lspconfig",
-    dependencies = { "williamboman/mason-lspconfig.nvim" },
+    dependencies = { "mason-org/mason-lspconfig.nvim" },
     config = function()
-      local lspconfig = require("lspconfig")
-      local capabilities = require("cmp_nvim_lsp").default_capabilities()
+      vim.lsp.config("*", { capabilities = require("cmp_nvim_lsp").default_capabilities() })
 
       local servers = {
         pyright = {
@@ -91,10 +112,10 @@ return {
         gopls = {},
         rust_analyzer = {},
         intelephense = {
-          settings = {
-intelephense = {
           filetypes = { "php", "blade" },
-              licenseKey = "00REIZG3OJICXJJ",
+          settings = {
+            intelephense = {
+              licenseKey = dotenv("INTELEPHENSE_LICENSE_KEY"),
               files = {
                 maxSize = 5000000000,
                 associations = { "*.blade.php", "*.php" },
@@ -166,26 +187,16 @@ intelephense = {
         end
       end)
 
+      for name, config in pairs(servers) do
+        vim.lsp.config(name, config)
+      end
+
+      -- mason-lspconfig v2 enables every Mason-installed server through
+      -- vim.lsp.enable(). stylua is installed for none-ls formatting, so keep
+      -- its LSP mode off or Lua gets formatted twice.
       require("mason-lspconfig").setup({
         ensure_installed = vim.tbl_keys(servers),
-        handlers = {
-          function(server_name)
-            local invalid = {
-              ["null-ls"] = true,
-              ["jedi_language_server"] = true,
-            }
-            if invalid[server_name] then return end
-            local config = {
-              capabilities = capabilities,
-              settings = servers[server_name] and servers[server_name].settings or {},
-              init_options = servers[server_name] and servers[server_name].init_options or {},
-            }
-            if servers[server_name].filetypes then
-              config.filetypes = servers[server_name].filetypes
-            end
-            lspconfig[server_name].setup(config)
-          end,
-        },
+        automatic_enable = { exclude = { "stylua", "jedi_language_server" } },
       })
 
       vim.api.nvim_create_autocmd("LspAttach", {
@@ -214,6 +225,7 @@ intelephense = {
     dependencies = {
       "hrsh7th/cmp-nvim-lsp",
       "hrsh7th/cmp-buffer",
+      "hrsh7th/cmp-path",
       "L3MON4D3/LuaSnip",
       "saadparwaiz1/cmp_luasnip",
     },
@@ -310,5 +322,4 @@ intelephense = {
     },
   },
 
-  { "jwalton512/vim-blade" },
 }

@@ -35,20 +35,20 @@ Singleton {
         if (action === "toggle" && group === "all") {
             action = root.groupStates["all"] === "on" ? "off" : "on";
         }
-        Quickshell.execDetached(["/home/jkrebs/dotfiles/quickshell/scripts/ha-lights", action, group]);
+        Quickshell.execDetached([Quickshell.shellDir + "/scripts/ha-lights", action, group]);
         // Matter devices take a beat to report their new state back, so
         // re-poll shortly after instead of only on the fixed interval.
         refreshDelay.restart();
     }
 
     function setColor(group, r, g, b) {
-        Quickshell.execDetached(["/home/jkrebs/dotfiles/quickshell/scripts/ha-lights", "color", group, String(r), String(g), String(b)]);
+        Quickshell.execDetached([Quickshell.shellDir + "/scripts/ha-lights", "color", group, String(r), String(g), String(b)]);
         refreshDelay.restart();
     }
 
     Process {
         id: statusProc
-        command: ["/home/jkrebs/dotfiles/quickshell/scripts/ha-lights-status"]
+        command: [Quickshell.shellDir + "/scripts/ha-lights-status"]
 
         stdout: StdioCollector {
             onStreamFinished: {

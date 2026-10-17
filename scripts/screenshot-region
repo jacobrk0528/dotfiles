@@ -3,6 +3,11 @@
 # (v1.3.0) uses `local geometry=$(grab_region)` internally, which masks
 # slurp's exit code under `set -e`, so cancelling the selection with Escape
 # still falls through to grim and saves/copies a screenshot anyway.
+#
+# The whole layout is captured *before* slurp starts: slurp's overlay takes
+# focus, which closes popups (dropdowns, context menus) in the app underneath.
+# The selection is then cropped out of that earlier capture, and the capture is
+# shown frozen under slurp (quickshell/overlays/Freeze.qml) while you drag.
 set -euo pipefail
 
 clipboard_only=0
@@ -16,14 +21,34 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Uncompressed: a PNG of the whole layout takes ~850ms to encode, PPM ~40ms.
+full=$(mktemp --suffix=.ppm)
+trap 'qs ipc call freeze close >/dev/null 2>&1 || true; rm -f "$full"' EXIT
+
+grim -t ppm "$full"
+
+monitors=$(hyprctl monitors -j)
+read -r origin_x origin_y scale < <(jq -r '"\(map(.x) | min) \(map(.y) | min) \(map(.scale) | max)"' <<<"$monitors")
+
+# Show the capture under slurp so you can see what you're selecting.
+qs ipc call freeze open "$full" >/dev/null 2>&1 || true
+
 geometry=$(slurp) || exit 0
 
+# grim's full capture spans the layout's bounding box (whose origin can be
+# negative) at the highest output scale; slurp reports logical layout
+# coordinates. Convert "X,Y WxH" into a pixel crop of the capture.
+crop=$(jq -rn --arg g "$geometry" --argjson ox "$origin_x" --argjson oy "$origin_y" --argjson s "$scale" '
+    $g | capture("(?<x>-?[0-9]+),(?<y>-?[0-9]+) (?<w>[0-9]+)x(?<h>[0-9]+)") | map_values(tonumber)
+    | "\(.w * $s | round)x\(.h * $s | round)+\((.x - $ox) * $s | round)+\((.y - $oy) * $s | round)"
+')
+
 if [[ "$clipboard_only" == "1" ]]; then
-    grim -g "$geometry" - | wl-copy --type image/png
+    magick "$full" -crop "$crop" +repage png:- | wl-copy --type image/png
     notify-send "Screenshot saved" "Image copied to the clipboard" -a hyprshot
 else
     mkdir -p "$output_dir"
     file="$output_dir/$(date +%Y-%m-%d-%H%M%S)_hyprshot.png"
-    grim -g "$geometry" "$file"
+    magick "$full" -crop "$crop" +repage "$file"
     wl-copy --type image/png < "$file"
 fi

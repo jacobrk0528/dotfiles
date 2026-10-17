@@ -1,0 +1,15 @@
+# Session environment for uwsm (linked to ~/.config/uwsm/env by scripts/link.sh).
+# Unlike hl.env in hyprland.lua, these reach systemd user units, portals and
+# D-Bus-activated apps too. Takes effect at the next login.
+
+# NVIDIA
+export GBM_BACKEND=nvidia-drm
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+
+# Without this, Qt apps (Dolphin) ignore kdeglobals and render with Qt's
+# default light palette; there is no Plasma session here to apply it for them.
+export QT_QPA_PLATFORMTHEME=kde
+
+export XCURSOR_SIZE=24
+export TZ=America/New_York
+export LANG=en_US.UTF-8

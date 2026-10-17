@@ -171,7 +171,7 @@ alias byebye='systemctl poweroff'
 
 # history
 alias h='history'
-alias clear_history='echo "" > ~/.zsh_history & exec $SHELL -l'
+alias clear_history='echo "" > ~/.zsh_history && exec $SHELL -l'
 
 # Folder Alias
 alias docs="cd ~/Documents"

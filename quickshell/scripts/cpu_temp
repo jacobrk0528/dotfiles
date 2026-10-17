@@ -21,11 +21,27 @@ if [ -n "$k10_dir" ]; then
     c_val=$(awk "BEGIN {printf \"%.1f\", $raw/1000}")
 
     case "$lbl" in
-      Tctl|Package*) tctl_val="$c_val" ;;
+      Tctl|Package*) tctl_file="$f"; tctl_val="$c_val" ;;
       Tccd1) tccd1_val="$c_val" ;;
       Tccd2) tccd2_val="$c_val" ;;
     esac
   done
+fi
+
+# Tctl jumps 10-15°C within milliseconds as cores boost, so one read lands on
+# a random spike. Average 10 reads over a second, using builtins only so this
+# script's own process spawns don't wake the cores mid-sample.
+if [ -n "$tctl_file" ]; then
+  # A read with a timeout on a pipe that never gets data is a fork-free sleep
+  exec {nap}<> <(:)
+  sum=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    read -r raw < "$tctl_file"
+    sum=$((sum + raw))
+    read -rt 0.1 -u "$nap"
+  done
+  exec {nap}<&-
+  tctl_val="$((sum / 10000)).$(( (sum / 1000) % 10 ))"
 fi
 
 # Fallback if hwmon lookup failed

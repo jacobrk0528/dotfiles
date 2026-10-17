@@ -1,0 +1,15 @@
+[Unit]
+Description=Record temperatures and the busiest processes every second (sysmon report)
+After=graphical-session.target
+StartLimitIntervalSec=120
+StartLimitBurst=10
+
+[Service]
+ExecStart=/usr/bin/python3 %h/dotfiles/hypr/scripts/sysmon/sysmon.py record
+Restart=always
+RestartSec=5
+# A recorder, not the thing being recorded: stay out of the way
+Nice=10
+
+[Install]
+WantedBy=graphical-session.target
