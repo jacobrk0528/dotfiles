@@ -1,0 +1,12 @@
+[Unit]
+Description=Notify when Syncthing makes a sync conflict copy (sync-status --notify)
+PartOf=graphical-session.target
+After=graphical-session.target syncthing.service
+
+[Service]
+ExecStart=%h/.local/bin/sync-status --notify
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

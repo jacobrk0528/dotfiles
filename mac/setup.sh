@@ -101,6 +101,8 @@ killall Dock
 echo "🔗 Installing optimus-link..."
 "$DOTFILES_DIR/mac/optimus-link/install.sh"
 brew services start syncthing
+# Pops up a notification when Syncthing has to keep a conflict copy
+"$DOTFILES_DIR/mac/sync-notify/install.sh"
 
 # 10. Android SDK — the same platforms and build tools the desktop has, so the
 # synced Android projects build here too

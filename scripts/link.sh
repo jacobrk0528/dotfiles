@@ -62,6 +62,7 @@ if [[ "$(uname)" != "Darwin" ]]; then
     link_file "xdg-desktop-portal-termfilechooser/config" "$HOME/.config/xdg-desktop-portal-termfilechooser/config"
     link_file "dolphin/kdeglobals" "$HOME/.config/kdeglobals"
     link_file "brave-flags.conf" "$HOME/.config/brave-flags.conf"
+    link_file "scripts/sync-notify.service" "$HOME/.config/systemd/user/sync-notify.service"
 fi
 
 echo "Dotfiles linking complete!"

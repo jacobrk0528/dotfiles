@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
-"""Pair this machine's Syncthing with the other one and share Documents and
-Downloads with it. Run once on each side; safe to re-run.
+"""Share Documents and Downloads through an always-on hub (bumblebee, in the
+homelab). The desktop and laptop each sync only with the hub, never with each
+other, so whichever one is switched off never leaves the other unable to tell
+whether it is up to date. Safe to re-run.
 
-  sync-setup <peer-name> <peer-device-id> <peer-tailscale-ip>
+  sync-setup hub <client-name> <client-id> [<client-name> <client-id> ...]
+      On the hub: share both folders with every listed client, and forget any
+      device not listed.
 
-The device id is the "myID" line of `syncthing cli show system` on the peer.
+  sync-setup client <hub-name> <hub-id> <hub-address>
+      On a desktop or laptop: share both folders with the hub only, and forget
+      every other device (including an old direct pairing with the other
+      machine). The address is like tcp://192.168.1.110:22000.
+
+A device id is the "myID" line of `syncthing cli show system` on that machine.
 Check the result with `sync-status`.
 """
 import json
@@ -21,9 +30,11 @@ CONFIG_CANDIDATES = [
     "~/.config/syncthing/config.xml",
 ]
 
-# Synced as .stglobalignore so both machines always agree on it. Everything
-# here is either rebuilt per machine (a Linux node_modules or venv does not run
-# on macOS) or hard-codes this machine's paths.
+# Synced as .stglobalignore so every machine agrees on it. Everything here is
+# either rebuilt per machine (a Linux node_modules or venv does not run on
+# macOS) or hard-codes this machine's paths. The hub uses the same list: a path
+# it ignores is never passed on, so anything it skipped would silently stop
+# crossing between the desktop and laptop.
 DOCUMENTS_IGNORES = """\
 (?d).DS_Store
 (?d)node_modules
@@ -54,62 +65,93 @@ FOLDERS = [
     ("documents", "Documents", "~/Documents", DOCUMENTS_IGNORES),
     ("downloads", "Downloads", "~/Downloads", DOWNLOADS_IGNORES),
 ]
+# Anything a sync replaces or deletes is kept in .stversions, so a file
+# clobbered by a badly timed edit can be recovered. The hub keeps it longer:
+# it is the copy that is always there.
+VERSION_DAYS = {"hub": 30, "client": 14}
 
 
-def main(peer_name, peer_id, peer_ip):
-    for path in CONFIG_CANDIDATES:
-        path = os.path.expanduser(path)
-        if os.path.exists(path):
-            xml = open(path).read()
-            break
-    else:
-        sys.exit("no Syncthing config found; start syncthing once first")
-    key = re.search(r"<apikey>([^<]+)</apikey>", xml).group(1)
-    base = "http://" + re.search(r"<gui[^>]*>.*?<address>([^<]+)</address>", xml, re.S).group(1)
+class Syncthing:
+    def __init__(self):
+        for path in CONFIG_CANDIDATES:
+            path = os.path.expanduser(path)
+            if os.path.exists(path):
+                xml = open(path).read()
+                break
+        else:
+            sys.exit("no Syncthing config found; start syncthing once first")
+        self.key = re.search(r"<apikey>([^<]+)</apikey>", xml).group(1)
+        self.base = "http://" + re.search(r"<gui[^>]*>.*?<address>([^<]+)</address>", xml, re.S).group(1)
 
-    def call(method, path, body=None):
-        req = urllib.request.Request(f"{base}/rest/{path}", method=method,
+    def call(self, method, path, body=None):
+        req = urllib.request.Request(f"{self.base}/rest/{path}", method=method,
                                      data=json.dumps(body).encode() if body is not None else None,
-                                     headers={"X-API-Key": key, "Content-Type": "application/json"})
+                                     headers={"X-API-Key": self.key, "Content-Type": "application/json"})
         try:
-            return urllib.request.urlopen(req, timeout=10).read()
+            raw = urllib.request.urlopen(req, timeout=10).read()
+            return json.loads(raw) if raw else None
         except urllib.error.HTTPError as err:
             if err.code != 404:
                 raise
 
-    # Both machines are on the tailnet, so talk to the peer there directly and
-    # keep the traffic off public relays and discovery servers.
-    call("PATCH", "config/options", {
+
+def write_if_changed(path, text):
+    # Rewriting an identical .stglobalignore would still be a change for
+    # Syncthing to pass around, so leave it alone when it already matches.
+    if os.path.exists(path) and open(path).read() == text:
+        return
+    with open(path, "w") as f:
+        f.write(text)
+
+
+def main(role, peers):
+    st = Syncthing()
+    me = st.call("GET", "system/status")["myID"]
+
+    # Discovery and relays stay off: the clients dial the hub at a fixed
+    # address (on the LAN, or through the tailnet's subnet route when away),
+    # and the hub just accepts them.
+    st.call("PATCH", "config/options", {
         "relaysEnabled": False, "globalAnnounceEnabled": False,
         "localAnnounceEnabled": False, "natEnabled": False, "urAccepted": -1,
     })
-    call("POST", "config/devices", {
-        "deviceID": peer_id, "name": peer_name, "addresses": [f"tcp://{peer_ip}:22000"],
-    })
-    call("DELETE", "config/folders/default")
+    for peer in peers:
+        st.call("POST", "config/devices", peer)
+    st.call("DELETE", "config/folders/default")
 
     for folder_id, label, path, ignores in FOLDERS:
         root = os.path.expanduser(path)
         os.makedirs(root, exist_ok=True)
         # The ignore files have to exist before the folder is first scanned, or
         # the initial sync would start hauling node_modules across.
-        with open(os.path.join(root, ".stglobalignore"), "w") as f:
-            f.write(ignores)
+        write_if_changed(os.path.join(root, ".stglobalignore"), ignores)
         local = LOCAL_IGNORES.get(platform.system(), {}).get(folder_id, [])
-        with open(os.path.join(root, ".stignore"), "w") as f:
-            f.write("\n".join(local + ["#include .stglobalignore"]) + "\n")
-        call("POST", "config/folders", {
+        write_if_changed(os.path.join(root, ".stignore"), "\n".join(local + ["#include .stglobalignore"]) + "\n")
+        st.call("POST", "config/folders", {
             "id": folder_id, "label": label, "path": path, "type": "sendreceive",
-            "devices": [{"deviceID": peer_id}],
+            "devices": [{"deviceID": p["deviceID"]} for p in peers],
             "fsWatcherEnabled": True, "fsWatcherDelayS": 5,
-            # Anything a sync replaces or deletes is kept in .stversions for two
-            # weeks, so a file clobbered by a badly timed edit can be recovered.
-            "versioning": {"type": "staggered", "params": {"maxAge": str(14 * 86400)}},
+            "versioning": {"type": "staggered", "params": {"maxAge": str(VERSION_DAYS[role] * 86400)}},
         })
-        print(f"sharing {path} with {peer_name}")
+        print(f"sharing {path} with {', '.join(p['name'] for p in peers)}")
+
+    # Only once no folder is shared with them any more.
+    keep = {me} | {p["deviceID"] for p in peers}
+    for device in st.call("GET", "config/devices"):
+        if device["deviceID"] not in keep:
+            st.call("DELETE", f"config/devices/{device['deviceID']}")
+            print(f"forgot {device['name'] or device['deviceID'][:7]}")
+
+
+def parse(argv):
+    role, args = (argv[0], argv[1:]) if argv else (None, [])
+    if role == "hub" and args and len(args) % 2 == 0:
+        return role, [{"deviceID": i, "name": n, "addresses": ["dynamic"]} for n, i in zip(args[::2], args[1::2])]
+    if role == "client" and len(args) == 3:
+        name, device_id, address = args
+        return role, [{"deviceID": device_id, "name": name, "addresses": [address]}]
+    sys.exit(__doc__)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        sys.exit(__doc__)
-    main(*sys.argv[1:])
+    main(*parse(sys.argv[1:]))

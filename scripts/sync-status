@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-"""Is it safe to edit the folders Syncthing shares between the desktop and laptop?
+"""Is it safe to edit the folders Syncthing shares through the hub (bumblebee)?
 
-Editing a file here while a newer copy is still on its way from the other
-machine leaves a conflict copy (or, inside .git, a broken repo), so everything
+The desktop and laptop each sync only with the always-on hub, so this asks the
+hub, never the other machine. Editing a file here while a newer copy is still on
+its way leaves a conflict copy (or, inside .git, a broken repo), so everything
 that edits should ask this first.
 
   sync-status            report every shared folder
   sync-status --wait     block until it is safe, showing progress
   sync-status --prompt   one line for the shell prompt; nothing when safe
   sync-status --hook     Claude Code PreToolUse hook (reads the tool call on stdin)
+  sync-status --notify   keep running, and pop up a notification for each sync
+                         conflict (the systemd unit / LaunchAgent runs this)
 
 Exit status: 0 safe to edit, 1 changes still arriving (do not edit),
-2 cannot tell (other machine not connected, or Syncthing not running).
+2 cannot tell (hub not connected, or Syncthing not running).
 """
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -23,6 +27,9 @@ import urllib.request
 from datetime import datetime, timezone
 
 SAFE, RECEIVING, UNKNOWN = 0, 1, 2
+# Safe to edit here, but this machine's own edits have not all reached the hub
+# yet: don't switch it off and go work on the other one. Exits as SAFE.
+SENDING = 3
 
 CONFIG_CANDIDATES = [
     "~/Library/Application Support/Syncthing/config.xml",
@@ -54,12 +61,12 @@ class Syncthing:
         address = re.search(r"<gui[^>]*>.*?<address>([^<]+)</address>", xml, re.S).group(1)
         self.base = "http://" + address
 
-    def get(self, path, **params):
+    def get(self, path, http_timeout=5, **params):
         url = f"{self.base}/rest/{path}"
         if params:
             url += "?" + urllib.parse.urlencode(params)
         req = urllib.request.Request(url, headers={"X-API-Key": self.key})
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=http_timeout) as resp:
             return json.load(resp)
 
 
@@ -113,7 +120,8 @@ def check(only_path=None):
             if behind["needItems"] + behind["needDeletes"]:
                 # Our edits have not all landed there yet. Fine to keep working
                 # here; not yet safe to walk over and start on the other one.
-                message = f"in sync here; still sending {behind['needItems'] + behind['needDeletes']} items to {name}"
+                code = SENDING
+                message = f"still sending {behind['needItems'] + behind['needDeletes']} items to {name}"
         results.append((code, label, message))
 
     # Receiving outranks unknown: it is the definite reason not to edit.
@@ -129,7 +137,8 @@ def safe_check(only_path=None):
         return UNKNOWN, [(UNKNOWN, "Syncthing", f"not reachable ({err})")]
 
 
-MARK = {SAFE: "\033[32m✓\033[0m", RECEIVING: "\033[31m✗\033[0m", UNKNOWN: "\033[33m?\033[0m"}
+MARK = {SAFE: "\033[32m✓\033[0m", RECEIVING: "\033[31m✗\033[0m", UNKNOWN: "\033[33m?\033[0m",
+        SENDING: "\033[36m↑\033[0m"}
 VERDICT = {
     SAFE: "\033[32mSafe to edit.\033[0m",
     RECEIVING: "\033[1;31mDO NOT EDIT: changes are still arriving.\033[0m Run `sync-status --wait`.",
@@ -163,6 +172,9 @@ def prompt():
         print("%K{red}%F{white}%B SYNCING, DO NOT EDIT %b%f%k " + "; ".join(m for c, _, m in results if c == RECEIVING))
     elif overall == UNKNOWN:
         print("%K{yellow}%F{black} SYNC UNKNOWN %f%k " + "; ".join(m for c, _, m in results if c == UNKNOWN))
+    elif SENDING in (c for c, _, _ in results):
+        print("%K{cyan}%F{black} SYNC SENDING %f%k " + "; ".join(m for c, _, m in results if c == SENDING)
+              + "; wait before switching machines")
     return overall
 
 
@@ -194,6 +206,68 @@ def hook():
     return 0
 
 
+# name.sync-conflict-20261012-224822-QRFRPGO.ext: the older side of a file
+# both machines changed. Syncthing keeps the newer edit under the real name.
+CONFLICT = re.compile(r"\.sync-conflict-\d{8}-\d{6}-[A-Z0-9]{7}")
+
+
+def desktop_notify(title, body):
+    if sys.platform == "darwin":
+        cmd = ["osascript", "-e", "on run argv", "-e",
+               "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", title, body]
+    else:
+        cmd = ["notify-send", "-a", "Syncthing", "-u", "critical", title, body]
+    subprocess.run(cmd, check=False)
+
+
+def notify():
+    """Watch Syncthing's event stream for conflict copies appearing.
+
+    A conflict made here shows up when the renamed copy is scanned
+    (LocalIndexUpdated); one made on another machine arrives as a synced file
+    (ItemFinished). Either way the copy has to still be on disk, which skips
+    the events for deleting one after dealing with it.
+    """
+    # Event ids are counted per filter, so every call has to use the same one.
+    kinds = "LocalIndexUpdated,ItemFinished"
+    since, seen = None, set()
+    while True:
+        try:
+            st = Syncthing()
+            roots = {f["id"]: os.path.expanduser(f["path"]) for f in st.get("config/folders")}
+            if since is None:
+                # Start from now: conflicts already lying around were seen before.
+                latest = st.get("events", limit=1, timeout=1, events=kinds)
+                since = latest[-1]["id"] if latest else 0
+            events = st.get("events", http_timeout=90, since=since, timeout=60, events=kinds)
+        except OSError:
+            # Syncthing restarting resets its event ids, so start over after.
+            since = None
+            time.sleep(30)
+            continue
+
+        new = []
+        for event in events:
+            since = max(since, event["id"])
+            data = event["data"]
+            names = (data.get("filenames") or []) if event["type"] == "LocalIndexUpdated" else [data.get("item")]
+            for name in names:
+                if not name or not CONFLICT.search(os.path.basename(name)):
+                    continue
+                path = os.path.join(roots.get(data.get("folder"), ""), name)
+                if path not in seen and os.path.exists(path):
+                    seen.add(path)
+                    new.append(name)
+        if len(new) == 1:
+            original = CONFLICT.sub("", new[0])
+            desktop_notify("Sync conflict", f"{original} was changed on two machines. The newer edit was kept; "
+                           f"the older one is next to it as {os.path.basename(new[0])}.")
+        elif new:
+            desktop_notify("Sync conflicts", f"{len(new)} files were changed on two machines, including "
+                           f"{CONFLICT.sub('', new[0])}. Newer edits were kept; older ones are saved as "
+                           "*.sync-conflict-* copies next to them.")
+
+
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
-    sys.exit({"--wait": wait, "--prompt": prompt, "--hook": hook}.get(mode, report)())
+    sys.exit({"--wait": wait, "--prompt": prompt, "--hook": hook, "--notify": notify}.get(mode, report)())
