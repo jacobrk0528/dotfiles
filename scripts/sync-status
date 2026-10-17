@@ -142,7 +142,7 @@ MARK = {SAFE: "\033[32m✓\033[0m", RECEIVING: "\033[31m✗\033[0m", UNKNOWN: "\
 VERDICT = {
     SAFE: "\033[32mSafe to edit.\033[0m",
     RECEIVING: "\033[1;31mDO NOT EDIT: changes are still arriving.\033[0m Run `sync-status --wait`.",
-    UNKNOWN: "\033[1;33mCANNOT CONFIRM the other machine has nothing newer.\033[0m",
+    UNKNOWN: "\033[1;33mCANNOT CONFIRM the hub has nothing newer.\033[0m",
 }
 
 
