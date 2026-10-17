@@ -27,11 +27,13 @@ struct YabaiSpace: Decodable {
     let windows: [Int]
     let isVisible: Bool
     let hasFocus: Bool
+    let isNativeFullscreen: Bool
 
     enum CodingKeys: String, CodingKey {
         case index, display, windows
         case isVisible = "is-visible"
         case hasFocus = "has-focus"
+        case isNativeFullscreen = "is-native-fullscreen"
     }
 }
 
@@ -830,7 +832,9 @@ final class Bar {
         panel = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel],
                         backing: .buffered, defer: false)
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.dockWindow)))
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        // Dock-level windows still show on fullscreen spaces, so setSpaces
+        // hides the bar there itself.
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
@@ -916,6 +920,12 @@ final class Bar {
     }
 
     func setSpaces(_ spaces: [YabaiSpace]) {
+        // Get out of the way of fullscreen apps and videos (their own space)
+        if spaces.contains(where: { $0.isVisible && $0.isNativeFullscreen }) {
+            panel.orderOut(nil)
+        } else {
+            panel.orderFrontRegardless()
+        }
         spacesStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         // Numbered by yabai's global index, which is also what --focus takes
         spaces.forEach { spacesStack.addArrangedSubview(spaceTile($0, label: $0.index)) }
