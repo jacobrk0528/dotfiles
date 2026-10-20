@@ -26,7 +26,7 @@ ask_first:
   send_message:
     description: Sends, posts, replies, or publishes something other people will see (email, chat, comment, post)
     labels: ['\b(send|post|reply|publish|comment|tweet|submit)\b']
-    commands: ['git push', '\bcurl\b.*(-X\s*(POST|PUT|PATCH|DELETE)|--data|-d\s)', '\b(notify-send|ntfy)\b', '\bgh\s+(pr|issue)\s+(create|comment|merge|close)']
+    commands: ['git push', '\bcurl\b.*(-X\s*(POST|PUT|PATCH|DELETE)|--data|-d\s)', '\b(notify-send)\b', '\bgh\s+(pr|issue)\s+(create|comment|merge|close)']
   share_access:
     description: Shares a file, report, or folder, or changes who can view or edit it
     labels: ['\b(share|invite|add people|permissions?|make public|anyone with the link)\b']

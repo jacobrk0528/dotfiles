@@ -53,4 +53,3 @@ BigQuery work. Dataform and Cloud Storage are already in.
 - [ ] Theme from `quickshell/theme.json` so it matches the rest of the desktop.
 - [ ] Resizable panes (drag the divider, or `<`/`>` keys).
 - [ ] Split view: two query tabs side by side.
-- [ ] Notifications via `ntfy` when a long query finishes while the terminal is unfocused.

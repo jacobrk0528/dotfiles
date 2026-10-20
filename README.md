@@ -100,7 +100,7 @@ What does carry over:
     closes with the last session. `optimus-link status` shows what is forwarded; logs are in
     `~/Library/Logs/optimus-link.log`. Run `mac/optimus-link/install.sh` after editing it.
 *   Everything else shared between platforms (`nvim`, `ghostty`, `tmux`, `zshrc`, `yazi`,
-    `oh-my-zsh`, `scripts/ntfy`, `gitconfig`, `sqlfluff`) is linked identically by `scripts/link.sh`.
+    `oh-my-zsh`, `gitconfig`, `sqlfluff`) is linked identically by `scripts/link.sh`.
 
 ## 🔐 Login Screen (greetd)
 
